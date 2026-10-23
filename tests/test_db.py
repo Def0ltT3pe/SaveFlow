@@ -1,10 +1,13 @@
 import copy
 import json
+import threading
+import time
 
 import psycopg
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import func, select, text
+from sqlalchemy.orm import sessionmaker
 
 from app.db.models import Account, AccountRisk, ServiceStatusChange
 from app.risk import service, store
@@ -54,6 +57,36 @@ def test_failed_snapshot_keeps_previous_data(session, loaded, source_data, monke
         service.replace_snapshot(session, data)
     assert session.scalar(select(func.count()).select_from(Account)) == 10
     assert session.scalar(select(func.count()).select_from(AccountRisk)) == 10
+
+
+def test_reading_does_not_wait_for_snapshot_upload(engine, session, loaded, source_data, monkeypatch):
+    original = store.write_results
+    in_upload = threading.Event()
+
+    def slow_write(*args, **kwargs):
+        in_upload.set()
+        time.sleep(2)  # загрузка идёт, транзакция открыта
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(store, "write_results", slow_write)
+    data = copy.deepcopy(source_data)
+    data["accounts"] = data["accounts"][:5]
+    data["services"] = [s for s in data["services"] if s["ownerId"] <= 5]
+    ids = {s["id"] for s in data["services"]}
+    data["transactions"] = [t for t in data["transactions"] if t["serviceId"] in ids]
+    upload = threading.Thread(target=service.replace_snapshot, args=(session, data))
+    upload.start()
+    assert in_upload.wait(10)
+
+    with sessionmaker(bind=engine)() as reader:
+        started = time.perf_counter()
+        page = service.get_customers(reader, limit=100)
+        elapsed = time.perf_counter() - started
+    upload.join()
+    assert elapsed < 1, f"чтение ждало загрузку снимка {elapsed:.1f} с"
+    assert page["total"] == 10  # до COMMIT виден прежний снимок
+    with sessionmaker(bind=engine)() as reader:
+        assert service.get_customers(reader)["total"] == 5
 
 
 def test_invalid_snapshot_is_rejected_before_db(session, loaded, source_data):

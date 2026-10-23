@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, insert, select, text
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -123,9 +123,11 @@ def replace_snapshot(session: Session, snapshot: SnapshotIn | dict) -> dict:
         old = {row.id: row for row in session.execute(
             select(Service.id, Service.status, Service.owner_id, Service.price, Service.payment_term))}
 
-        session.execute(text(
-            "TRUNCATE public.account_risk, public.service_risk, "
-            "public.transactions, public.services, public.accounts"))
+        # DELETE, а не TRUNCATE: TRUNCATE берёт ACCESS EXCLUSIVE до конца транзакции, и чтение списка
+        # клиентов ждёт всю загрузку (пул соединений кончается) или ловит deadlock. После DELETE читатели
+        # до COMMIT видят прежний снимок. Порядок — от зависимых таблиц к accounts из-за внешних ключей.
+        for model in (ServiceRisk, AccountRisk, Transaction, Service, Account):
+            session.execute(delete(model))
         rows_by_model = {Account: snap.accounts, Service: snap.services, Transaction: snap.transactions}
         for model, table in SOURCE_TABLES:
             rows = rows_by_model[model]
