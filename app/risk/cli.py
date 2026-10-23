@@ -15,7 +15,28 @@ DESCRIPTION = """Командная строка модели.
 python -m app.risk.cli load data/data.json [--if-empty] загрузить снимок (полная замена)
 python -m app.risk.cli recalc                        пересчитать оценки
 python -m app.risk.cli summary | customers | customer ID | settings | timeline | metrics
+python -m app.risk.cli dbcheck                       куда подключается бэкенд и готова ли БД
 """
+
+
+def _dbcheck() -> int:
+    from app.db.check import check_database
+
+    sys.stdout.reconfigure(encoding="utf-8")
+    r = check_database()
+    print(f"БД:          {r['url']}  (источник: {r['source']})")
+    if r["connectSeconds"] is None:
+        print(f"Подключение: ОШИБКА — {r['error']}")
+        return 1
+    print(f"Подключение: ок за {r['connectSeconds']} с")
+    print(f"Миграции:    {r['revision'] or 'нет'} (последняя в коде: {r['head']})")
+    if r["accounts"] is not None:
+        print(f"Клиентов:    {r['accounts']}")
+    if not r["ok"]:
+        print(f"ПРОБЛЕМА:    {r['error']}")
+        return 1
+    print("Всё в порядке")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,7 +57,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("settings")
     sub.add_parser("timeline")
     sub.add_parser("metrics")
+    sub.add_parser("dbcheck")
     args = parser.parse_args(argv)
+    if args.command == "dbcheck":
+        return _dbcheck()
 
     with session_factory()() as session:
         if args.command == "load":
