@@ -1,16 +1,26 @@
 import axios from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  AnalyticsSummary,
-  CustomerDetail,
   CustomerListItem,
   CustomersQuery,
   LoginRequest,
-  ModelSettings,
   ModelSettingsPatch,
   SourceSnapshot,
   User,
 } from '../types';
+import {
+  type BCustomerDetail,
+  type BCustomerPage,
+  type BSettings,
+  type BSummary,
+  type BTimeline,
+  fromLevel,
+  fromSettingsPatch,
+  toCustomer,
+  toCustomerDetail,
+  toSettings,
+  toSummary,
+} from './backend';
 
 // ── Axios ───────────────────────────────────────────────
 // Сессия живёт в httpOnly-cookie; если бэкенд отдаёт токен — кладём его в localStorage('token').
@@ -44,11 +54,14 @@ export function errorMessage(e: unknown): string {
 
 // ── Авторизация ─────────────────────────────────────────
 export const login = async (body: LoginRequest) => {
-  const { data } = await http.post<{ token?: string; user?: User }>('/auth/login', body);
-  if (data?.token) localStorage.setItem('token', data.token);
+  const { data } = await http.post<{ access_token: string; token_type: string }>('/auth/login', body);
+  localStorage.setItem('token', data.access_token);
   return data;
 };
-export const getMe = async () => (await http.get<User>('/auth/me')).data;
+export const getMe = async (): Promise<User> => {
+  const { data } = await http.get<{ username: string }>('/auth/me');
+  return { id: data.username, username: data.username };
+};
 export const logout = async () => {
   try {
     await http.post('/auth/logout');
@@ -58,25 +71,33 @@ export const logout = async () => {
 };
 
 // ── Клиенты ─────────────────────────────────────────────
+const PAGE_LIMIT = 500;
+
 export const getCustomers = async (q: CustomersQuery = {}): Promise<CustomerListItem[]> => {
-  const params: Record<string, string> = {};
-  if (q.sortBy) params.sortBy = q.sortBy;
+  const params: Record<string, string | number> = { limit: PAGE_LIMIT };
+  if (q.sortBy) params.sort = q.sortBy;
   if (q.order) params.order = q.order;
-  if (q.riskLevel) params.riskLevel = q.riskLevel;
+  if (q.riskLevel) params.level = fromLevel(q.riskLevel);
   if (q.search) params.search = q.search;
-  const { data } = await http.get<CustomerListItem[] | { items: CustomerListItem[] }>('/customers', { params });
-  return Array.isArray(data) ? data : data.items; // поддерживаем оба формата ответа
+  const { data } = await http.get<BCustomerPage>('/customers', { params });
+  return data.items.map(toCustomer);
 };
 export const getCustomer = async (id: string | number) =>
-  (await http.get<CustomerDetail>(`/customers/${id}`)).data;
+  toCustomerDetail((await http.get<BCustomerDetail>(`/customers/${id}`)).data);
 
 // ── Аналитика ───────────────────────────────────────────
-export const getSummary = async () => (await http.get<AnalyticsSummary>('/analytics/summary')).data;
+export const getSummary = async () => {
+  const [summary, timeline] = await Promise.all([
+    http.get<BSummary>('/analytics/summary'),
+    http.get<BTimeline>('/analytics/churn-timeline'),
+  ]);
+  return toSummary(summary.data, timeline.data);
+};
 
 // ── Настройки модели ────────────────────────────────────
-export const getSettings = async () => (await http.get<ModelSettings>('/model/settings')).data;
+export const getSettings = async () => toSettings((await http.get<BSettings>('/model/settings')).data);
 export const patchSettings = async (patch: ModelSettingsPatch) =>
-  (await http.patch<ModelSettings>('/model/settings', patch)).data;
+  toSettings((await http.patch<BSettings>('/model/settings', fromSettingsPatch(patch))).data);
 
 // ── Снимок данных ───────────────────────────────────────
 export const putSnapshot = async (snapshot: SourceSnapshot) =>
@@ -84,10 +105,24 @@ export const putSnapshot = async (snapshot: SourceSnapshot) =>
 
 // ── Живое обновление ────────────────────────────────────
 // Данные перезапрашиваются: (1) по таймеру, (2) сразу после любого изменения из UI (emitChanged),
-// (3) при возвращении на вкладку. Если на бэкенде появится SSE/WebSocket — достаточно вызвать
-// emitChanged() из обработчика события, остальной код менять не нужно.
+// (3) при возвращении на вкладку, (4) по SSE-событию бэкенда после каждого пересчёта модели.
 const CHANGED = 'data:changed';
 export const emitChanged = () => window.dispatchEvent(new Event(CHANGED));
+
+/** Подписка на SSE /events/stream: любое изменение данных или настроек → emitChanged(). */
+export function useServerEvents() {
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const source = new EventSource(`/api/v1/events/stream?token=${encodeURIComponent(token)}`);
+    let first = true;
+    source.addEventListener('update', () => {
+      if (first) first = false;
+      else emitChanged();
+    });
+    return () => source.close();
+  }, []);
+}
 
 export function useLive<T>(fetcher: () => Promise<T>, deps: unknown[] = [], intervalMs = 5000) {
   const [data, setData] = useState<T | null>(null);

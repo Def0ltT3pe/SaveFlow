@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useServerEvents } from '../api/client';
 import type { User } from '../types';
 
 const NAV = [
@@ -8,6 +9,7 @@ const NAV = [
 ];
 
 export default function Layout({ user, onLogout }: { user: User; onLogout: () => void }) {
+  useServerEvents();
   return (
     <div className="shell">
       <aside className="sidebar">
