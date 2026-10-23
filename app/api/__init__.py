@@ -6,7 +6,7 @@ api_router — всё под /api/v1; защищённые роутеры зак
 """
 from fastapi import APIRouter, Depends
 
-from app.api import analytics, auth, customers, metrics, model, source
+from app.api import analytics, auth, customers, events, metrics, model, source
 from app.core.security import get_current_user
 
 api_router = APIRouter(prefix="/api/v1")
@@ -16,6 +16,8 @@ api_router.include_router(customers.router, dependencies=[Depends(get_current_us
 api_router.include_router(analytics.router, dependencies=[Depends(get_current_user)])
 api_router.include_router(model.router, dependencies=[Depends(get_current_user)])
 api_router.include_router(source.router, dependencies=[Depends(get_current_user)])
+api_router.include_router(events.router, dependencies=[Depends(get_current_user)])
+api_router.include_router(events.stream_router)
 
 # /metrics живёт вне /api/v1 и без авторизации
 metrics_router = metrics.router

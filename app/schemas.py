@@ -78,6 +78,13 @@ class Summary(BaseModel):
     model_version: int
 
 
+# --- live updates ---
+
+class Versions(BaseModel):
+    data_version: int
+    model_version: int
+
+
 # --- model settings ---
 
 class Thresholds(BaseModel):
