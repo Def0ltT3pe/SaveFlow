@@ -156,6 +156,23 @@ def test_patch_during_snapshot_upload_is_not_lost(engine, session, loaded, sourc
     assert run["settingsVersion"] == settings["version"]
 
 
+@pytest.mark.parametrize("call", [
+    lambda s: service.get_customers(s, limit=500),
+    lambda s: service.get_customer(s, 5),
+    lambda s: service.get_customer(s, 999),
+    service.get_summary,
+    service.get_settings,
+    service.render_metrics,
+    service.get_churn_timeline,
+    lambda s: service.update_settings(s, {"weights": {"suspended": 11}}),
+], ids=["customers", "customer", "customer_missing", "summary", "settings", "metrics", "timeline", "patch"])
+def test_functions_return_connection_before_response_is_sent(engine, loaded, call):
+    # Сессия ещё открыта, как в FastAPI, пока ответ уходит клиенту по медленной сети.
+    with sessionmaker(bind=engine)() as s:
+        call(s)
+        assert engine.pool.checkedout() == 0
+
+
 def test_invalid_snapshot_is_rejected_before_db(session, loaded, source_data):
     data = copy.deepcopy(source_data)
     data["services"][0]["ownerId"] = 999

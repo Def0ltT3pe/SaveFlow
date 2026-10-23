@@ -1,3 +1,4 @@
+import functools
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -52,6 +53,24 @@ MAX_PAGE = 500
 MAX_OFFSET = 10**9
 MAX_SEARCH = 320
 MAX_DAYS_BACK = 365
+
+
+def _releases_connection(fn):
+    """После сборки ответа транзакция завершается и соединение возвращается в пул.
+
+    FastAPI закрывает сессию из Depends(get_db) только после отправки ответа клиенту; по медленной
+    сети (туннель, мобильный интернет) это секунды, и всё это время соединение было бы занято.
+    Ответ к этому моменту — уже готовый dict, поэтому откат ничего не теряет.
+    """
+
+    @functools.wraps(fn)
+    def wrapper(session: Session, *args, **kwargs):
+        try:
+            return fn(session, *args, **kwargs)
+        finally:
+            session.rollback()
+
+    return wrapper
 
 
 def _json(model) -> dict:
@@ -206,10 +225,12 @@ def _settings_out(session: Session) -> ModelSettingsOut:
     return ModelSettingsOut(settings=settings, version=version, updated_at=updated_at, features=features)
 
 
+@_releases_connection
 def get_settings(session: Session) -> dict:
     return _json(_settings_out(session))
 
 
+@_releases_connection
 def update_settings(session: Session, patch: ModelSettingsPatch | dict) -> dict:
     """Меняет настройки (частично) и пересчитывает оценки.
 
@@ -253,6 +274,7 @@ def _customer_fields(a: Account, r: AccountRisk | None) -> dict:
     )
 
 
+@_releases_connection
 def get_customers(
     session: Session,
     *,
@@ -299,6 +321,7 @@ def get_customers(
     return _json(CustomerPage(items=items, total=total, limit=limit, offset=offset, sort=sort, order=order))
 
 
+@_releases_connection
 def get_customer(session: Session, customer_id: int | str) -> dict | None:
     """Подробная оценка клиента с услугами и вкладами признаков.
 
@@ -396,10 +419,12 @@ def _summary(session: Session) -> RiskSummary:
     )
 
 
+@_releases_connection
 def get_summary(session: Session) -> dict:
     return _json(_summary(session))
 
 
+@_releases_connection
 def render_metrics(session: Session) -> str:
     """Тело ответа GET /metrics (text/plain; version=0.0.4). Те же числа, что в get_summary."""
     s = _summary(session)
@@ -439,6 +464,7 @@ def render_metrics(session: Session) -> str:
 # --- График оттока (дополнительная возможность) ------------------------------
 
 
+@_releases_connection
 def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
     """Факт удалений за days_back дней до опорной даты и прогноз непродлений на горизонт.
 
