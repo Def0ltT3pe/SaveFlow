@@ -1,20 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-from app.schemas import Snapshot, SnapshotResult
-from app.services import state
+from app.api.deps import get_db
+from app.risk import service
+from app.risk.schemas import SnapshotIn, SnapshotResult
 
 router = APIRouter(prefix="/source", tags=["source"])
 
 
 @router.put("/snapshot", response_model=SnapshotResult)
-def put_snapshot(body: Snapshot) -> SnapshotResult:
+def put_snapshot(body: SnapshotIn, db: Session = Depends(get_db)) -> dict:
     """Загрузка или полная замена снимка исходных данных с автоматическим пересчётом."""
-    # TODO: атомарная замена в БД одной транзакцией; настройки модели не трогаем
-    state.snapshot = body.model_dump()
-    data_version = state.recompute_all()
-    return SnapshotResult(
-        customers=len(body.customers),
-        services=len(body.services),
-        transactions=len(body.transactions),
-        data_version=data_version,
-    )
+    return service.replace_snapshot(db, body)

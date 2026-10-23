@@ -1,35 +1,16 @@
 """GET /metrics — Prometheus, без авторизации (скрейпер должен иметь доступ)."""
-from fastapi import APIRouter, Response
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest
-from prometheus_client.core import GaugeMetricFamily
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy.orm import Session
 
-from app.services.analytics import aggregate
+from app.api.deps import get_db
+from app.risk import service
 
 router = APIRouter(tags=["metrics"])
 
-
-class SaveFlowCollector:
-    """Значения считаются на каждом скрейпе из той же aggregate(), что и панель."""
-
-    def collect(self):
-        s = aggregate()
-        customers = GaugeMetricFamily(
-            "saveflow_customers", "Клиенты по уровню риска", labels=["risk_level"]
-        )
-        for level, count in s.customers_by_level.items():
-            customers.add_metric([level.value], count)
-        yield customers
-        yield GaugeMetricFamily("saveflow_money_at_risk_eur", "Выручка под риском, EUR", value=s.money_at_risk)
-        yield GaugeMetricFamily("saveflow_expected_loss_eur", "Ожидаемые потери, EUR", value=s.expected_loss)
-        yield GaugeMetricFamily("saveflow_data_version", "Версия данных", value=s.data_version)
-        yield GaugeMetricFamily("saveflow_model_version", "Версия настроек модели", value=s.model_version)
+PROMETHEUS_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 
 
-registry = CollectorRegistry()
-registry.register(SaveFlowCollector())
-
-
-@router.get("/metrics")
-def metrics() -> Response:
+@router.get("/metrics", response_class=Response)
+def metrics(db: Session = Depends(get_db)) -> Response:
     """Получение агрегированных метрик в формате Prometheus."""
-    return Response(generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
+    return Response(service.render_metrics(db), media_type=PROMETHEUS_CONTENT_TYPE)

@@ -1,30 +1,32 @@
-from typing import Literal
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, HTTPException, Query, status
-
-from app.schemas import CustomerDetail, CustomerList, RiskLevel
+from app.api.deps import get_db
+from app.risk import service
+from app.risk.schemas import CustomerDetail, CustomerPage, RiskLevel, SortField, SortOrder
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
-SortField = Literal["id", "email", "balance", "total_replenished", "risk_score"]
 
-
-@router.get("", response_model=CustomerList)
+@router.get("", response_model=CustomerPage)
 def list_customers(
-    sort_by: SortField = "risk_score",
-    order: Literal["asc", "desc"] = "desc",
-    risk_level: RiskLevel | None = None,
-    search: str | None = Query(None, description="Подстрока в ID или email"),
+    sort: SortField = "score",
+    order: SortOrder = "desc",
+    level: list[RiskLevel] | None = Query(None, description="Фильтр по уровням, можно несколько"),
+    search: str | None = Query(None, description="Подстрока email"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
-) -> CustomerList:
+    db: Session = Depends(get_db),
+) -> dict:
     """Получение списка клиентов с оценками риска; фильтрация и сортировка рейтинга."""
-    # TODO: выборка из risk_scores с сортировкой на стороне БД
-    return CustomerList(total=0, items=[])
+    return service.get_customers(db, sort=sort, order=order, levels=level, search=search,
+                                 limit=limit, offset=offset)
 
 
 @router.get("/{customer_id}", response_model=CustomerDetail)
-def get_customer(customer_id: str) -> CustomerDetail:
+def get_customer(customer_id: int, db: Session = Depends(get_db)) -> dict:
     """Получение подробной оценки клиента, его услуг, признаков риска и объяснений."""
-    # TODO: клиент + услуги + вклад признаков + денежная оценка
-    raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+    customer = service.get_customer(db, customer_id)
+    if customer is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Customer not found")
+    return customer
