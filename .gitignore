@@ -5,6 +5,10 @@ __pycache__/
 venv/
 .pytest_cache/
 
+# Frontend
+node_modules/
+front/dist/
+
 # Окружение
 .env
 
