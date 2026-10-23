@@ -17,6 +17,7 @@ from app.risk import store
 from app.risk.fmt import eur
 from app.risk.registry import all_features
 from app.risk.schemas import (
+    BIGINT_MAX,
     ChurnTimeline,
     CustomerDetail,
     CustomerListItem,
@@ -46,11 +47,26 @@ SORT_COLUMNS = {
     "expectedLoss": AccountRisk.expected_loss,
 }
 LEVELS = ("high", "medium", "low", "none")
+SOURCE_TABLES = ((Account, "public.accounts"), (Service, "public.services"), (Transaction, "public.transactions"))
 MAX_PAGE = 500
+MAX_OFFSET = 10**9
+MAX_SEARCH = 320
+MAX_DAYS_BACK = 365
 
 
 def _json(model) -> dict:
     return model.model_dump(mode="json", by_alias=True)
+
+
+def _as_int(value, name: str) -> int:
+    """Целое из числа или строки из цифр; всё остальное (bool, '10; DROP …', 1.5) — ValueError."""
+    if isinstance(value, bool):
+        raise ValueError(f"{name} должен быть целым числом")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().lstrip("+-").isdigit():
+        return int(value)
+    raise ValueError(f"{name} должен быть целым числом")
 
 
 def _float(value) -> float:
@@ -110,14 +126,15 @@ def replace_snapshot(session: Session, snapshot: SnapshotIn | dict) -> dict:
         session.execute(text(
             "TRUNCATE public.account_risk, public.service_risk, "
             "public.transactions, public.services, public.accounts"))
-        for model, rows in ((Account, snap.accounts), (Service, snap.services), (Transaction, snap.transactions)):
+        rows_by_model = {Account: snap.accounts, Service: snap.services, Transaction: snap.transactions}
+        for model, table in SOURCE_TABLES:
+            rows = rows_by_model[model]
             if rows:
                 session.execute(insert(model), [r.model_dump() for r in rows])
-            table = model.__tablename__
-            session.execute(text(
-                f"SELECT setval(pg_get_serial_sequence('public.{table}', 'id'), "
-                f"coalesce((SELECT max(id) FROM public.{table}), 1), "
-                f"(SELECT count(*) > 0 FROM public.{table}))"))
+            # Следующий id продолжает загруженные; имя таблицы уходит параметром, а не склейкой строк.
+            max_id = select(func.max(model.id)).scalar_subquery()
+            session.execute(select(func.setval(func.pg_get_serial_sequence(table, "id"),
+                                               func.coalesce(max_id, 1), max_id.is_not(None))))
 
         snapshot_id = session.execute(
             insert(Snapshot).values(reference_date=reference, accounts=len(snap.accounts),
@@ -222,21 +239,27 @@ def get_customers(
     levels: фильтр по уровням (high/medium/low/none), search: подстрока email.
     Клиенты без оценки (score = null) при сортировке по score всегда в конце.
     """
-    if sort not in SORT_COLUMNS:
+    if not isinstance(sort, str) or sort not in SORT_COLUMNS:
         raise ValueError(f"sort должен быть одним из {sorted(SORT_COLUMNS)}")
     if order not in ("asc", "desc"):
         raise ValueError("order должен быть asc или desc")
-    if levels and (bad := set(levels) - set(LEVELS)):
+    if isinstance(levels, str):
+        levels = [levels]
+    if levels and (bad := set(map(str, levels)) - set(LEVELS)):
         raise ValueError(f"неизвестные уровни {sorted(bad)}; доступны {list(LEVELS)}")
-    limit = min(max(limit, 1), MAX_PAGE)
-    offset = max(offset, 0)
+    if search is not None:
+        search = str(search)
+        if len(search) > MAX_SEARCH or "\x00" in search:
+            raise ValueError(f"search: не длиннее {MAX_SEARCH} символов и без нулевых байтов")
+    limit = min(max(_as_int(limit, "limit"), 1), MAX_PAGE)
+    offset = min(max(_as_int(offset, "offset"), 0), MAX_OFFSET)
 
     stmt = select(Account, AccountRisk).outerjoin(AccountRisk, AccountRisk.account_id == Account.id)
     if levels:
         stmt = stmt.where(func.coalesce(AccountRisk.level, "none").in_(levels))
     if search:
-        pattern = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        stmt = stmt.where(Account.email.ilike(f"%{pattern}%", escape="\\"))
+        # autoescape экранирует % и _: строка поиска ищется буквально и уходит в БД параметром.
+        stmt = stmt.where(Account.email.icontains(search, autoescape=True))
     total = session.scalar(select(func.count()).select_from(stmt.subquery()))
 
     column = SORT_COLUMNS[sort]
@@ -246,8 +269,17 @@ def get_customers(
     return _json(CustomerPage(items=items, total=total, limit=limit, offset=offset, sort=sort, order=order))
 
 
-def get_customer(session: Session, customer_id: int) -> dict | None:
-    """Подробная оценка клиента с услугами и вкладами признаков. None, если клиента нет."""
+def get_customer(session: Session, customer_id: int | str) -> dict | None:
+    """Подробная оценка клиента с услугами и вкладами признаков.
+
+    None, если клиента нет или id не является целым числом в диапазоне bigint.
+    """
+    try:
+        customer_id = _as_int(customer_id, "customer_id")
+    except ValueError:
+        return None
+    if not 1 <= customer_id <= BIGINT_MAX:
+        return None
     account = session.get(Account, customer_id)
     if account is None:
         return None
@@ -384,6 +416,7 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
     expiresAt + льготный период. Прогноз: для каждой действующей услуги в день ближайшего
     списания добавляется её вероятность ухода.
     """
+    days_back = min(max(_as_int(days_back, "days_back"), 0), MAX_DAYS_BACK)
     settings, _, _ = store.load_settings(session)
     run = store.latest_run(session)
     as_of = run.as_of if run else store.resolve_as_of(session, settings)

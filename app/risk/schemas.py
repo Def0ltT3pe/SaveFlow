@@ -7,6 +7,9 @@ from pydantic.alias_generators import to_camel
 from app.risk.registry import all_features, default_weights
 
 BIGINT_MAX = 2**63 - 1
+# Без пробелов, управляющих символов (в т.ч. \x00, который PostgreSQL не хранит в text) и <>"`,
+# чтобы адрес не мог превратиться в разметку в панели. Апостроф разрешён: o'neil@… — реальный адрес.
+EMAIL_PATTERN = "^[^@\\s<>\"`\\x00-\\x1f\\x7f]+@[^@\\s<>\"`\\x00-\\x1f\\x7f]+$"
 
 Id = Annotated[int, Field(ge=1, le=BIGINT_MAX)]
 Cents = Annotated[int, Field(ge=0, le=BIGINT_MAX)]
@@ -26,7 +29,7 @@ class CamelModel(BaseModel):
 
 class AccountIn(CamelModel):
     id: Id
-    email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
+    email: str = Field(min_length=3, max_length=320, pattern=EMAIL_PATTERN)
     balance: Cents = 0
     withdraw_balance: Cents = 0
     total_replenished: Cents = 0

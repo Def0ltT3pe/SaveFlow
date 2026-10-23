@@ -35,3 +35,13 @@ def session(engine):
 @pytest.fixture
 def source_data() -> dict:
     return json.loads((ROOT / "data" / "data.json").read_text(encoding="utf-8"))
+
+
+@pytest.fixture
+def loaded(session, source_data):
+    from app.risk import service, store
+    from app.risk.schemas import ModelSettings
+
+    store.save_settings(session, ModelSettings())
+    session.commit()
+    return service.replace_snapshot(session, source_data)

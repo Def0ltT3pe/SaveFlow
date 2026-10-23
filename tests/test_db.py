@@ -8,21 +8,7 @@ from sqlalchemy import func, select, text
 
 from app.db.models import Account, AccountRisk, ServiceStatusChange
 from app.risk import service, store
-from app.risk.schemas import (
-    CustomerDetail,
-    CustomerPage,
-    ModelSettings,
-    ModelSettingsOut,
-    RiskSummary,
-    SnapshotResult,
-)
-
-
-@pytest.fixture
-def loaded(session, source_data):
-    store.save_settings(session, ModelSettings())
-    session.commit()
-    return service.replace_snapshot(session, source_data)
+from app.risk.schemas import CustomerDetail, CustomerPage, ModelSettingsOut, RiskSummary, SnapshotResult
 
 
 def test_snapshot_loads_and_scores(session, loaded):
