@@ -1,0 +1,93 @@
+{
+  "id": 7,
+  "email": "client-0007@example.test",
+  "balance": 384,
+  "withdrawBalance": 0,
+  "bonusBalance": 1302,
+  "bonusState": "unlocked",
+  "totalReplenished": 5264,
+  "score": null,
+  "loyalty": null,
+  "level": "none",
+  "mainReason": "Нет действующих услуг (все удалены или заблокированы): оценивать нечего",
+  "reasons": [
+    {
+      "feature": "no_data",
+      "title": "Нет оценки",
+      "text": "Нет действующих услуг (все удалены или заблокированы): оценивать нечего",
+      "points": null,
+      "serviceId": null,
+      "serviceName": null,
+      "services": 0
+    }
+  ],
+  "liveServices": 0,
+  "money": {
+    "monthlyRevenue": 0.0,
+    "horizonRevenue": 0.0,
+    "securedByBalance": 0.0,
+    "atRisk": 0.0,
+    "expectedLoss": 0.0,
+    "expectedMonthlyLoss": 0.0
+  },
+  "asOf": "2026-10-22T15:00:00Z",
+  "computedAt": "2026-10-23T18:42:23.845000Z",
+  "services": [
+    {
+      "id": 15,
+      "name": "srv-0007-1",
+      "status": "blocked",
+      "paymentTerm": "year",
+      "autoProlong": true,
+      "price": 946,
+      "createdAt": "2025-08-30T06:56:59.285000Z",
+      "expiresAt": "2026-08-30T06:56:59.285000Z",
+      "scored": false,
+      "score": null,
+      "probability": null,
+      "daysToExpiry": -53.335,
+      "renewalsInHorizon": 0,
+      "monthlyPrice": 78.83,
+      "horizonRevenue": 0.0,
+      "securedByBalance": 0.0,
+      "atRisk": 0.0,
+      "expectedLoss": 0.0,
+      "expectedMonthlyLoss": 0.0,
+      "contributions": [],
+      "transactions": {
+        "total": 1,
+        "performed": 1,
+        "notPerformed": 0,
+        "lastPerformedAt": "2025-08-30T06:57:26.285000Z"
+      }
+    },
+    {
+      "id": 16,
+      "name": "srv-0007-2",
+      "status": "blocked",
+      "paymentTerm": "month",
+      "autoProlong": false,
+      "price": 824,
+      "createdAt": "2026-07-29T11:27:15.546000Z",
+      "expiresAt": "2026-11-29T11:27:15.546000Z",
+      "scored": false,
+      "score": null,
+      "probability": null,
+      "daysToExpiry": 37.852,
+      "renewalsInHorizon": 0,
+      "monthlyPrice": 824.0,
+      "horizonRevenue": 0.0,
+      "securedByBalance": 0.0,
+      "atRisk": 0.0,
+      "expectedLoss": 0.0,
+      "expectedMonthlyLoss": 0.0,
+      "contributions": [],
+      "transactions": {
+        "total": 4,
+        "performed": 3,
+        "notPerformed": 1,
+        "lastPerformedAt": "2026-10-19T15:01:32Z"
+      }
+    }
+  ]
+}

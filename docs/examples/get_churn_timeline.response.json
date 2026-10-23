@@ -1,0 +1,102 @@
+{
+  "asOf": "2026-10-22T15:00:00Z",
+  "horizonDays": 30,
+  "points": [
+    {
+      "date": "2026-10-15",
+      "kind": "fact",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-16",
+      "kind": "fact",
+      "deletions": 0,
+      "estimatedDeletions": 1,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-17",
+      "kind": "fact",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-18",
+      "kind": "fact",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-19",
+      "kind": "fact",
+      "deletions": 3,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-20",
+      "kind": "fact",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-21",
+      "kind": "fact",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-22",
+      "kind": "fact",
+      "deletions": 15,
+      "estimatedDeletions": 0,
+      "dueServices": 0,
+      "expectedNonRenewals": 0.0
+    },
+    {
+      "date": "2026-10-22",
+      "kind": "forecast",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 61,
+      "expectedNonRenewals": 18.5774
+    },
+    {
+      "date": "2026-10-23",
+      "kind": "forecast",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 9,
+      "expectedNonRenewals": 1.7539
+    },
+    {
+      "date": "2026-10-24",
+      "kind": "forecast",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 8,
+      "expectedNonRenewals": 0.2451
+    },
+    {
+      "date": "2026-10-25",
+      "kind": "forecast",
+      "deletions": 0,
+      "estimatedDeletions": 0,
+      "dueServices": 4,
+      "expectedNonRenewals": 0.3785
+    }
+  ]
+}

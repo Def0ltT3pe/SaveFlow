@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest==9.1.1
+# Встроенный PostgreSQL для интеграционных тестов без Docker.
+pgserver==0.1.4

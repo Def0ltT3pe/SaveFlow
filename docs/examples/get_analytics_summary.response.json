@@ -1,0 +1,34 @@
+{
+  "run": {
+    "id": 4,
+    "computedAt": "2026-10-23T18:42:23.845000Z",
+    "asOf": "2026-10-22T15:00:00Z",
+    "settingsVersion": 1,
+    "snapshotId": 4,
+    "reason": "snapshot"
+  },
+  "horizonDays": 30,
+  "accountsTotal": 200,
+  "accountsByLevel": {
+    "high": 11,
+    "medium": 36,
+    "low": 122,
+    "none": 31
+  },
+  "averageScore": 19.98,
+  "servicesTotal": 401,
+  "servicesLive": 319,
+  "servicesAtRisk": 62,
+  "money": {
+    "monthlyRevenue": 196352.91,
+    "horizonRevenue": 200660.0,
+    "securedByBalance": 113662.0,
+    "atRisk": 86998.0,
+    "expectedLoss": 33962.78,
+    "expectedMonthlyLoss": 33443.26
+  },
+  "highRiskAtRisk": 16994.0,
+  "highRiskBalance": 1669.0,
+  "highRiskWithdrawable": 8.0,
+  "explanation": "Ожидаемая потеря за 30 дн.: €339.63. Это сумма по всем действующим услугам: вероятность ухода клиента (score / 100) × деньги, которые клиент должен заплатить за продления в ближайшие 30 дн. и которые ещё не покрыты его балансом при включённом автопродлении. Всего за 30 дн. ожидается €2 006.60, из них €1 136.62 уже лежит на балансах и спишется автоматически, под риском €869.98. Ежемесячная выручка €1 963.53, ожидаемая потеря в месяц €334.43."
+}
