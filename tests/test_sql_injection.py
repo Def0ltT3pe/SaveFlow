@@ -70,12 +70,16 @@ def test_query_parameters_are_whitelisted(session, loaded, kwargs):
     {"offset": "0 OR 1=1"},
     {"limit": 1.5},
     {"limit": True},
-    {"search": "a\x00b"},
-    {"search": "a" * 321},
 ])
-def test_paging_and_search_reject_garbage(session, loaded, kwargs):
+def test_paging_rejects_garbage(session, loaded, kwargs):
     with pytest.raises(ValueError):
         service.get_customers(session, **kwargs)
+
+
+@pytest.mark.parametrize("search", ["a\x00b", "a" * 321])
+def test_impossible_search_finds_nobody_without_error(session, loaded, search):
+    page = service.get_customers(session, search=search)
+    assert page["total"] == 0 and page["items"] == []
 
 
 def test_paging_bounds_never_reach_db_errors(session, loaded):

@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AfterValidator, AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 from app.risk.registry import all_features, default_weights
@@ -11,6 +11,18 @@ BIGINT_MAX = 2**63 - 1
 # чтобы адрес не мог превратиться в разметку в панели. Апостроф разрешён: o'neil@… — реальный адрес.
 EMAIL_PATTERN = "^[^@\\s<>\"`\\x00-\\x1f\\x7f]+@[^@\\s<>\"`\\x00-\\x1f\\x7f]+$"
 
+MIN_MOMENT = datetime(1970, 1, 1, tzinfo=timezone.utc)
+MAX_MOMENT = datetime(2200, 1, 1, tzinfo=timezone.utc)
+
+
+def _sane_moment(value: datetime) -> datetime:
+    # Даты вроде 0001 или 9999 года ломают арифметику «опорная дата ± N дней» (OverflowError → 500).
+    if not MIN_MOMENT <= value <= MAX_MOMENT:
+        raise ValueError("дата должна быть между 1970 и 2200 годом")
+    return value
+
+
+Moment = Annotated[AwareDatetime, AfterValidator(_sane_moment)]
 Id = Annotated[int, Field(ge=1, le=BIGINT_MAX)]
 Cents = Annotated[int, Field(ge=0, le=BIGINT_MAX)]
 PaymentTerm = Literal["hour", "week", "month", "quarter_year", "half_year", "year"]
@@ -43,8 +55,8 @@ class ServiceIn(CamelModel):
     owner_id: Id
     payment_term: PaymentTerm
     auto_prolong: bool = False
-    created_at: AwareDatetime
-    expires_at: AwareDatetime
+    created_at: Moment
+    expires_at: Moment
     status: ServiceStatus
     price: Cents
 
@@ -59,8 +71,8 @@ class TransactionIn(CamelModel):
     id: Id
     amount: int = Field(ge=0, le=1000)
     status: Literal["not_performed", "performed"] = "not_performed"
-    performed_at: AwareDatetime | None = None
-    created_at: AwareDatetime
+    performed_at: Moment | None = None
+    created_at: Moment
     type: Literal["prolong", "order"]
     service_id: Id
 
@@ -83,7 +95,7 @@ class SnapshotIn(CamelModel):
     Если его нет, берётся самая поздняя дата из самих данных.
     """
 
-    reference_date: AwareDatetime | None = None
+    reference_date: Moment | None = None
     accounts: list[AccountIn]
     services: list[ServiceIn] = []
     transactions: list[TransactionIn] = []
@@ -150,7 +162,7 @@ class ModelSettings(CamelModel):
     as_of_mode: Literal["snapshot", "now", "fixed"] = Field(
         "snapshot", description="Опорная дата: дата снимка, текущее время или asOfFixed"
     )
-    as_of_fixed: AwareDatetime | None = None
+    as_of_fixed: Moment | None = None
 
     @field_validator("weights")
     @classmethod
@@ -187,7 +199,7 @@ class ModelSettingsPatch(CamelModel):
     new_service_days: int | None = None
     aggregation: Literal["max", "revenue_weighted"] | None = None
     as_of_mode: Literal["snapshot", "now", "fixed"] | None = None
-    as_of_fixed: AwareDatetime | None = None
+    as_of_fixed: Moment | None = None
 
     def apply_to(self, current: ModelSettings) -> ModelSettings:
         data = current.model_dump()

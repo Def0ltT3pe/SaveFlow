@@ -299,12 +299,14 @@ def get_customers(
         levels = [levels]
     if levels and (bad := set(map(str, levels)) - set(LEVELS)):
         raise ValueError(f"неизвестные уровни {sorted(bad)}; доступны {list(LEVELS)}")
-    if search is not None:
-        search = str(search)
-        if len(search) > MAX_SEARCH or "\x00" in search:
-            raise ValueError(f"search: не длиннее {MAX_SEARCH} символов и без нулевых байтов")
     limit = min(max(_as_int(limit, "limit"), 1), MAX_PAGE)
     offset = min(max(_as_int(offset, "offset"), 0), MAX_OFFSET)
+    if search is not None:
+        search = str(search)
+        # Email длиннее 320 символов или с нулевым байтом не бывает: честный ответ — никого не нашли.
+        # Исключение здесь стало бы 500 в эндпоинте, а до БД такая строка доходить не должна.
+        if len(search) > MAX_SEARCH or "\x00" in search:
+            return _json(CustomerPage(items=[], total=0, limit=limit, offset=offset, sort=sort, order=order))
 
     stmt = select(Account, AccountRisk).outerjoin(AccountRisk, AccountRisk.account_id == Account.id)
     if levels:

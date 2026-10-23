@@ -173,6 +173,33 @@ def test_functions_return_connection_before_response_is_sent(engine, loaded, cal
         assert engine.pool.checkedout() == 0
 
 
+def test_expensive_hourly_service_does_not_overflow_money(session, loaded, source_data):
+    data = copy.deepcopy(source_data)
+    hourly = next(s for s in data["services"] if s["paymentTerm"] == "hour" and s["status"] == "active")
+    hourly["price"] = 10**10
+    service.replace_snapshot(session, data)
+    detail = service.get_customer(session, hourly["ownerId"])
+    assert detail["money"]["horizonRevenue"] >= 10**10 * 700
+
+
+@pytest.mark.parametrize("field,value", [
+    ("referenceDate", "9999-12-31T00:00:00Z"),
+    ("referenceDate", "0001-01-02T00:00:00Z"),
+])
+def test_absurd_dates_are_rejected_on_input(session, loaded, source_data, field, value):
+    data = copy.deepcopy(source_data)
+    data[field] = value
+    with pytest.raises(ValidationError):
+        service.replace_snapshot(session, data)
+    data = copy.deepcopy(source_data)
+    data["services"][0]["expiresAt"] = "9999-12-31T00:00:00Z"
+    with pytest.raises(ValidationError):
+        service.replace_snapshot(session, data)
+    with pytest.raises(ValidationError):
+        service.update_settings(session, {"asOfMode": "fixed", "asOfFixed": value})
+    assert service.get_churn_timeline(session)["points"]
+
+
 def test_invalid_snapshot_is_rejected_before_db(session, loaded, source_data):
     data = copy.deepcopy(source_data)
     data["services"][0]["ownerId"] = 999

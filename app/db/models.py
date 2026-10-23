@@ -5,7 +5,7 @@ from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Numer
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-Money = Numeric(14, 2)
+Money = Numeric()
 
 
 class Base(DeclarativeBase):
