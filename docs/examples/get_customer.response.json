@@ -1,0 +1,153 @@
+{
+  "id": 21,
+  "email": "client-0021@example.test",
+  "balance": 30,
+  "withdrawBalance": 8,
+  "bonusBalance": 0,
+  "bonusState": "locked",
+  "totalReplenished": 6006,
+  "score": 81.74,
+  "loyalty": 18.26,
+  "level": "high",
+  "mainReason": "Ожидает оплаты: без неё будет удалена через 19 ч",
+  "reasons": [
+    {
+      "feature": "prolong_wait",
+      "title": "Ожидает оплаты",
+      "text": "Ожидает оплаты: без неё будет удалена через 19 ч",
+      "points": 45.0,
+      "serviceId": 43,
+      "serviceName": "srv-0021-2",
+      "services": 1
+    },
+    {
+      "feature": "insufficient_funds",
+      "title": "Не хватает средств на продление",
+      "text": "На балансе €0.30, а продления за 30 дн. стоят €9.83",
+      "points": 24.24,
+      "serviceId": 43,
+      "serviceName": "srv-0021-2",
+      "services": 1
+    },
+    {
+      "feature": "churn_history",
+      "title": "Уже уходил",
+      "text": "Удалено или заблокировано 1 из 2 услуг клиента",
+      "points": 7.5,
+      "serviceId": 43,
+      "serviceName": "srv-0021-2",
+      "services": 1
+    },
+    {
+      "feature": "unpaid_transactions",
+      "title": "Неоплаченные платежи",
+      "text": "Не проведено 1 из 2 платежей по услуге",
+      "points": 5.0,
+      "serviceId": 43,
+      "serviceName": "srv-0021-2",
+      "services": 1
+    }
+  ],
+  "liveServices": 1,
+  "money": {
+    "monthlyRevenue": 81.92,
+    "horizonRevenue": 983.0,
+    "securedByBalance": 0.0,
+    "atRisk": 983.0,
+    "expectedLoss": 803.5,
+    "expectedMonthlyLoss": 66.96
+  },
+  "asOf": "2026-10-22T15:00:00Z",
+  "computedAt": "2026-10-23T18:42:23.845000Z",
+  "services": [
+    {
+      "id": 42,
+      "name": "srv-0021-1",
+      "status": "deleted",
+      "paymentTerm": "year",
+      "autoProlong": false,
+      "price": 921,
+      "createdAt": "2025-10-17T06:20:16.474000Z",
+      "expiresAt": "2026-10-17T06:20:16.474000Z",
+      "scored": false,
+      "score": null,
+      "probability": null,
+      "daysToExpiry": -5.361,
+      "renewalsInHorizon": 0,
+      "monthlyPrice": 76.75,
+      "horizonRevenue": 0.0,
+      "securedByBalance": 0.0,
+      "atRisk": 0.0,
+      "expectedLoss": 0.0,
+      "expectedMonthlyLoss": 0.0,
+      "contributions": [],
+      "transactions": {
+        "total": 2,
+        "performed": 1,
+        "notPerformed": 1,
+        "lastPerformedAt": "2025-10-17T06:21:51.474000Z"
+      }
+    },
+    {
+      "id": 43,
+      "name": "srv-0021-2",
+      "status": "prolong_wait",
+      "paymentTerm": "year",
+      "autoProlong": false,
+      "price": 983,
+      "createdAt": "2025-10-18T10:21:36.709000Z",
+      "expiresAt": "2026-10-18T10:21:36.709000Z",
+      "scored": true,
+      "score": 81.74,
+      "probability": 0.8174,
+      "daysToExpiry": -4.193,
+      "renewalsInHorizon": 1,
+      "monthlyPrice": 81.92,
+      "horizonRevenue": 983.0,
+      "securedByBalance": 0.0,
+      "atRisk": 983.0,
+      "expectedLoss": 803.5,
+      "expectedMonthlyLoss": 66.96,
+      "contributions": [
+        {
+          "feature": "prolong_wait",
+          "title": "Ожидает оплаты",
+          "value": 1.0,
+          "weight": 45.0,
+          "points": 45.0,
+          "text": "Ожидает оплаты: без неё будет удалена через 19 ч"
+        },
+        {
+          "feature": "insufficient_funds",
+          "title": "Не хватает средств на продление",
+          "value": 0.9695,
+          "weight": 25.0,
+          "points": 24.24,
+          "text": "На балансе €0.30, а продления за 30 дн. стоят €9.83"
+        },
+        {
+          "feature": "churn_history",
+          "title": "Уже уходил",
+          "value": 0.5,
+          "weight": 15.0,
+          "points": 7.5,
+          "text": "Удалено или заблокировано 1 из 2 услуг клиента"
+        },
+        {
+          "feature": "unpaid_transactions",
+          "title": "Неоплаченные платежи",
+          "value": 0.5,
+          "weight": 10.0,
+          "points": 5.0,
+          "text": "Не проведено 1 из 2 платежей по услуге"
+        }
+      ],
+      "transactions": {
+        "total": 2,
+        "performed": 1,
+        "notPerformed": 1,
+        "lastPerformedAt": "2025-10-18T10:21:58.709000Z"
+      }
+    }
+  ]
+}

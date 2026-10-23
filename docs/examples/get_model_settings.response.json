@@ -1,0 +1,69 @@
+{
+  "settings": {
+    "weights": {
+      "prolong_wait": 45.0,
+      "expiring_no_autoprolong": 30.0,
+      "insufficient_funds": 25.0,
+      "suspended": 10.0,
+      "churn_history": 15.0,
+      "unpaid_transactions": 10.0,
+      "new_service": 5.0
+    },
+    "thresholds": {
+      "high": 60.0,
+      "medium": 30.0
+    },
+    "horizonDays": 30,
+    "prolongWaitGraceDays": 5,
+    "newServiceDays": 30,
+    "aggregation": "max",
+    "asOfMode": "snapshot",
+    "asOfFixed": null
+  },
+  "version": 1,
+  "updatedAt": "2026-10-23T18:30:58.783000Z",
+  "features": [
+    {
+      "key": "prolong_wait",
+      "title": "Ожидает оплаты",
+      "description": "Срок услуги истёк, она в статусе prolong_wait и без оплаты будет удалена после льготного периода.",
+      "defaultWeight": 45.0
+    },
+    {
+      "key": "expiring_no_autoprolong",
+      "title": "Скоро истекает без автопродления",
+      "description": "Автопродление выключено, а срок истекает в пределах горизонта прогноза. Чем ближе дата, тем сильнее сигнал.",
+      "defaultWeight": 30.0
+    },
+    {
+      "key": "insufficient_funds",
+      "title": "Не хватает средств на продление",
+      "description": "Основного и доступного бонусного баланса не хватит на продления в горизонте прогноза. Средства распределяются по услугам в порядке ближайшего списания.",
+      "defaultWeight": 25.0
+    },
+    {
+      "key": "suspended",
+      "title": "Сервер выключен",
+      "description": "Пользователь сам выключил сервер (suspended): услугой не пользуются, хотя деньги списываются.",
+      "defaultWeight": 10.0
+    },
+    {
+      "key": "churn_history",
+      "title": "Уже уходил",
+      "description": "Доля услуг клиента, которые уже удалены или заблокированы.",
+      "defaultWeight": 15.0
+    },
+    {
+      "key": "unpaid_transactions",
+      "title": "Неоплаченные платежи",
+      "description": "Доля непроведённых транзакций (not_performed) по услуге: созданные, но не оплаченные заказы и продления.",
+      "defaultWeight": 10.0
+    },
+    {
+      "key": "new_service",
+      "title": "Новая услуга",
+      "description": "Услуга подключена недавно: в первые недели клиенты отказываются чаще. Сигнал затухает к концу периода.",
+      "defaultWeight": 5.0
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "weights": {
+    "prolong_wait": 50,
+    "suspended": 5
+  },
+  "thresholds": {
+    "high": 65
+  },
+  "horizonDays": 14
+}
