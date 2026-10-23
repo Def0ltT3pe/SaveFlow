@@ -28,6 +28,15 @@ def lock(session: Session) -> None:
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": RECALC_LOCK_KEY})
 
 
+def try_lock(session: Session) -> bool:
+    """Взять блокировку пересчёта без ожидания: False, если пересчёт уже идёт в другой транзакции."""
+    return bool(session.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": RECALC_LOCK_KEY}))
+
+
+def settings_version(session: Session) -> int:
+    return session.scalar(select(ModelSettingsRow.version).where(ModelSettingsRow.id == 1)) or 0
+
+
 def notify(session: Session, payload: dict) -> None:
     """Событие уходит слушателям LISTEN risk_updated только после COMMIT."""
     session.execute(text("SELECT pg_notify(:channel, :payload)"),
@@ -37,8 +46,11 @@ def notify(session: Session, payload: dict) -> None:
 # --- Настройки ---------------------------------------------------------------
 
 
-def load_settings(session: Session) -> tuple[ModelSettings, int, datetime]:
+def load_settings(session: Session, for_update: bool = False) -> tuple[ModelSettings, int, datetime]:
+    """for_update=True блокирует строку до конца транзакции: параллельные PATCH не затирают друг друга."""
     stmt = select(ModelSettingsRow).where(ModelSettingsRow.id == 1).execution_options(populate_existing=True)
+    if for_update:
+        stmt = stmt.with_for_update()
     row = session.scalar(stmt)
     if row is None:
         session.execute(insert(ModelSettingsRow).values(id=1, data={}))

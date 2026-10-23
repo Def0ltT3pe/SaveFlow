@@ -89,6 +89,73 @@ def test_reading_does_not_wait_for_snapshot_upload(engine, session, loaded, sour
         assert service.get_customers(reader)["total"] == 5
 
 
+def _slow_writes(monkeypatch, seconds=2):
+    original = store.write_results
+    started = threading.Event()
+
+    def slow_write(*args, **kwargs):
+        started.set()
+        time.sleep(seconds)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(store, "write_results", slow_write)
+    return started
+
+
+def _final_state(engine):
+    with sessionmaker(bind=engine)() as s:
+        return service.get_settings(s), service.get_summary(s)["run"]
+
+
+def test_settings_patch_does_not_wait_for_running_recalc(engine, session, loaded, monkeypatch):
+    in_recalc = _slow_writes(monkeypatch)
+    first = threading.Thread(target=service.update_settings, args=(session, {"weights": {"suspended": 20}}))
+    first.start()
+    assert in_recalc.wait(10)
+    with sessionmaker(bind=engine)() as other:
+        started = time.perf_counter()
+        service.update_settings(other, {"weights": {"prolong_wait": 10}})
+        elapsed = time.perf_counter() - started
+    first.join()
+    assert elapsed < 1, f"PATCH ждал чужой пересчёт {elapsed:.1f} с"
+    settings, run = _final_state(engine)
+    assert settings["settings"]["weights"]["suspended"] == 20
+    assert settings["settings"]["weights"]["prolong_wait"] == 10
+    assert run["settingsVersion"] == settings["version"]  # последнее изменение посчитано
+
+
+def test_parallel_patches_keep_both_changes(engine, loaded):
+    barrier = threading.Barrier(2)
+
+    def patch(weights):
+        with sessionmaker(bind=engine)() as s:
+            barrier.wait()
+            service.update_settings(s, {"weights": weights})
+
+    threads = [threading.Thread(target=patch, args=(w,)) for w in ({"suspended": 33}, {"new_service": 7})]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    settings, run = _final_state(engine)
+    assert settings["settings"]["weights"]["suspended"] == 33
+    assert settings["settings"]["weights"]["new_service"] == 7
+    assert run["settingsVersion"] == settings["version"]
+
+
+def test_patch_during_snapshot_upload_is_not_lost(engine, session, loaded, source_data, monkeypatch):
+    in_upload = _slow_writes(monkeypatch)
+    upload = threading.Thread(target=service.replace_snapshot, args=(session, source_data))
+    upload.start()
+    assert in_upload.wait(10)
+    with sessionmaker(bind=engine)() as other:
+        service.update_settings(other, {"weights": {"suspended": 44}})
+    upload.join()
+    settings, run = _final_state(engine)
+    assert settings["settings"]["weights"]["suspended"] == 44
+    assert run["settingsVersion"] == settings["version"]
+
+
 def test_invalid_snapshot_is_rejected_before_db(session, loaded, source_data):
     data = copy.deepcopy(source_data)
     data["services"][0]["ownerId"] = 999

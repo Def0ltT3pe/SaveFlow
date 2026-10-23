@@ -95,6 +95,28 @@ def _recalculate(session: Session, reason: str, snapshot_id: int | None = None) 
     return _run_out(run)
 
 
+def _catch_up(session: Session) -> None:
+    """Пересчитать, если настройки новее последнего пересчёта, не дожидаясь чужого пересчёта.
+
+    Если пересчёт уже идёт, запрос не ждёт его, держа соединение из пула: тот, кто считает,
+    после своего COMMIT снова зайдёт сюда, увидит новую версию настроек и посчитает ещё раз.
+    """
+    while True:
+        try:
+            if not store.try_lock(session):
+                session.rollback()
+                return
+            latest = store.latest_run(session)
+            if latest is not None and latest.settings_version >= store.settings_version(session):
+                session.rollback()
+                return
+            _recalculate(session, "settings")
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+
+
 def recalculate(session: Session, reason: str = "manual") -> dict:
     """Пересчитать все оценки (например, по таймеру в режиме asOfMode=now)."""
     try:
@@ -104,6 +126,7 @@ def recalculate(session: Session, reason: str = "manual") -> dict:
     except Exception:
         session.rollback()
         raise
+    _catch_up(session)
     return _json(run)
 
 
@@ -164,6 +187,8 @@ def replace_snapshot(session: Session, snapshot: SnapshotIn | dict) -> dict:
     except Exception:
         session.rollback()
         raise
+    # Пока шла загрузка, могли сохранить новые настройки: их пересчёт не должен потеряться.
+    _catch_up(session)
     return _json(SnapshotResult(
         snapshot_id=snapshot_id, reference_date=reference, accounts=len(snap.accounts),
         services=len(snap.services), transactions=len(snap.transactions),
@@ -186,17 +211,20 @@ def get_settings(session: Session) -> dict:
 
 
 def update_settings(session: Session, patch: ModelSettingsPatch | dict) -> dict:
-    """Меняет настройки (частично) и сразу пересчитывает оценки."""
+    """Меняет настройки (частично) и пересчитывает оценки.
+
+    Если в этот момент уже идёт другой пересчёт, ответ приходит сразу с сохранёнными настройками,
+    а новые оценки посчитает текущий пересчёт сразу после своего завершения.
+    """
     patch = patch if isinstance(patch, ModelSettingsPatch) else ModelSettingsPatch.model_validate(patch)
     try:
-        store.lock(session)
-        current, _, _ = store.load_settings(session)
+        current, _, _ = store.load_settings(session, for_update=True)
         store.save_settings(session, patch.apply_to(current))
-        _recalculate(session, "settings")
         session.commit()
     except Exception:
         session.rollback()
         raise
+    _catch_up(session)
     return _json(_settings_out(session))
 
 
