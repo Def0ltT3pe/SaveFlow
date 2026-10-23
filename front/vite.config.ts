@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    allowedHosts: ['.devtunnels.ms'],
     proxy: { '/api': target, '/metrics': target },
   },
 });

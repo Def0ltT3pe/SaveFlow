@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from app.api import api_router, metrics_router
 
@@ -11,6 +12,11 @@ app = FastAPI(
 )
 app.include_router(api_router)
 app.include_router(metrics_router)
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse("/api/v1/docs")
 
 
 @app.get("/healthz", include_in_schema=False)
