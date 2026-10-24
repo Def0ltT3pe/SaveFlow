@@ -8,8 +8,8 @@
   --text: #0b0b0b; --muted: #5a6670; --accent: var(--blue); --accent-ink: var(--navy);
 
   /* уровни риска: от «горячего» к «холодному»; текст затемнён для контраста */
-  --high: #C25B14; --high-bg: #FCE5D5; --high-fill: var(--orange);
-  --med: #8E3B63;  --med-bg: var(--pink);  --med-fill: #CC7FA4;
+  --high: #8E3B63; --high-bg: #FCE5D5; --high-fill: var(--orange);
+  --med: #C25B14;  --med-bg: var(--pink);  --med-fill: #CC7FA4;
   --low: #0B6285;  --low-bg: #D9F1FB;  --low-fill: var(--blue);
   --unk: #55626B;  --unk-bg: #E8ECEE;  --unk-fill: #AEB8BE;
 
