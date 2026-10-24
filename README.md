@@ -2,6 +2,46 @@
 
 Анализатор рисков оттока клиентов (хакатон RND, уровень MIDDLE).
 
+## Запуск через Docker
+
+Нужен Docker с Compose v2 (Docker Desktop или `docker compose` на Linux). Из корня репозитория:
+
+```bash
+docker compose up --build
+```
+
+Первая сборка занимает несколько минут. Когда в логе появится `Uvicorn running`, откройте:
+
+| Что | Адрес |
+|---|---|
+| Панель | http://localhost:8080 — вход `admin` / `admin` |
+| Swagger | http://localhost:8080/api/v1/docs |
+| OpenAPI | http://localhost:8080/api/v1/openapi.json (копия в [docs/openapi.json](docs/openapi.json)) |
+| Метрики Prometheus | http://localhost:8080/metrics — без авторизации |
+| Healthcheck | http://localhost:8080/healthz |
+
+Что поднимается: `db` (PostgreSQL 16), `backend` (FastAPI) и `frontend` (nginx: панель, прокси на `/api`, `/metrics`, `/healthz`). Наружу открыт только порт фронтенда. При старте бэкенд накатывает миграции и, если база пустая, загружает тестовый набор `data/data.json`.
+
+Данные, настройки модели и сессии входа хранятся в томе `pgdata` и переживают перезапуск:
+
+```bash
+docker compose down      # остановить, данные сохранятся
+docker compose down -v   # остановить и удалить данные: следующий запуск начнётся с data/data.json
+```
+
+**Другие данные.** Снимок в формате `data/data.json` загружается на странице «Модель и данные» или запросом `PUT /api/v1/source/snapshot` в Swagger. Он полностью заменяет данные, а оценки пересчитываются сразу. Пример побольше: `demo/demo_day0.json` (200 клиентов).
+
+**Настройки.** Скопируйте `.env.example` в `.env` рядом с `docker-compose.yml` и раскомментируйте нужное:
+
+| Переменная | По умолчанию | Что делает |
+|---|---|---|
+| `APP_PORT` | `8080` | порт панели на хосте |
+| `DEMO_USER`, `DEMO_PASSWORD` | `admin`, `admin` | логин и пароль входа — поменяйте перед показом |
+| `DB_PASSWORD` | `churn` | пароль PostgreSQL, только буквы и цифры |
+| `SEED_ON_START` | `1` | `0` — не загружать `data/data.json` в пустую базу |
+
+Если порт 8080 занят: `APP_PORT=8090 docker compose up --build` (в PowerShell — строка `APP_PORT=8090` в `.env`).
+
 ## Ветки
 
 - `main` — только готовые, проверенные изменения.
