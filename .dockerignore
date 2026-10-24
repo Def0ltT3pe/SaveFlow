@@ -1,0 +1,27 @@
+.git
+.gitignore
+.env
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.idea
+.vscode
+
+# фронт собирается отдельным образом (front/Dockerfile)
+front
+
+# в образ бэкенда не нужны
+tests
+docs
+demo
+tools
+scripts
+requirements-dev.txt
+README.md
+docker-compose.yml
+
+# из data/ нужен только data.json
+data/*
+!data/data.json

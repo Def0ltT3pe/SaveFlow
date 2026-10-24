@@ -1,0 +1,42 @@
+name: saveflow
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: churn
+      POSTGRES_USER: churn
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-churn}
+    volumes:
+      - pgdata:/var/lib/postgresql/data   # данные и настройки модели переживают перезапуск
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U churn -d churn"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://churn:${DB_PASSWORD:-churn}@db:5432/churn
+      AUTO_MIGRATE: "0"                     # миграции делает entrypoint
+      SEED_ON_START: ${SEED_ON_START:-1}    # 0 — не грузить data/data.json
+      DEMO_USER: ${DEMO_USER:-admin}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-admin}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./front
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
