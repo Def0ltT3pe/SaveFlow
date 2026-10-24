@@ -8,8 +8,8 @@
   --text: #0b0b0b; --muted: #5a6670; --accent: var(--blue); --accent-ink: var(--navy);
 
   /* уровни риска: от «горячего» к «холодному»; текст затемнён для контраста */
-  --high: #8E3B63; --high-bg: #FCE5D5; --high-fill: var(--orange);
-  --med: #C25B14;  --med-bg: var(--pink);  --med-fill: #CC7FA4;
+  --high: #B3261E; --high-bg: #FDE4E1; --high-fill: #E5483B;
+  --med: #7A5A00;  --med-bg: #FFF3C4;  --med-fill: #F5C518;
   --low: #0B6285;  --low-bg: #D9F1FB;  --low-fill: var(--blue);
   --unk: #55626B;  --unk-bg: #E8ECEE;  --unk-fill: #AEB8BE;
 
@@ -126,7 +126,7 @@ tbody tr:hover { background: var(--gray); }
 /* ——— настройки ——— */
 .sliders { display: flex; flex-direction: column; gap: 18px; margin-top: 12px; }
 .slider-row { display: flex; gap: 14px; align-items: center; }
-.slider-row input[type=range] { flex: 1; accent-color: var(--black); }
+.slider-row input[type=range] { flex: 1; accent-color: var(--blue); }
 .slider-num { width: 90px; }
 .save-state { font-size: .9rem; color: var(--muted); } .save-error { color: var(--high); } .save-saved { color: var(--low); }
 .file-btn { margin: 8px 0; cursor: pointer; }
