@@ -25,6 +25,7 @@ services:
       SEED_ON_START: ${SEED_ON_START:-1}    # 0 — не грузить data/data.json
       DEMO_USER: ${DEMO_USER:-admin}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-admin}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
     depends_on:
       db:
         condition: service_healthy
