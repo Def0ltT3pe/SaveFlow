@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, Numeric, SmallInteger, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, LargeBinary, Numeric, SmallInteger, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -51,6 +51,20 @@ class Transaction(Base):
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True))
     type: Mapped[str] = mapped_column(Text)
     service_id: Mapped[int] = mapped_column("serviceId", BigInteger, ForeignKey("services.id"))
+
+
+# --- Вход в панель -----------------------------------------------------------
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    token_hash: Mapped[bytes] = mapped_column("tokenHash", LargeBinary)
+    username: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column("revokedAt", DateTime(timezone=True))
 
 
 # --- Модель -----------------------------------------------------------------
