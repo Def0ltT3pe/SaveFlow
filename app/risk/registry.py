@@ -22,18 +22,22 @@ class Feature:
     description: str
     default_weight: float
     compute: Callable[["ServiceContext"], FeatureResult]
+    # "account" — сигнал про клиента целиком (а не про одну услугу): в причинах без имени услуги
+    scope: str = "service"
 
 
 FEATURES: dict[str, Feature] = {}
 
 
-def feature(key: str, *, title: str, default_weight: float, description: str):
+def feature(key: str, *, title: str, default_weight: float, description: str, scope: str = "service"):
     """Декоратор регистрации признака. Ключ попадает в настройки модели как имя веса."""
 
     def register(fn: Callable[["ServiceContext"], FeatureResult]):
         if key in FEATURES:
             raise ValueError(f"Признак {key!r} уже зарегистрирован")
-        FEATURES[key] = Feature(key, title, description, default_weight, fn)
+        if scope not in ("service", "account"):
+            raise ValueError(f"scope признака {key!r}: service или account")
+        FEATURES[key] = Feature(key, title, description, default_weight, fn, scope)
         return fn
 
     return register

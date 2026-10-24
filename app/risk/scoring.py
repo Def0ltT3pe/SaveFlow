@@ -116,14 +116,12 @@ def level_for(score: float | None, settings: ModelSettings) -> str:
     return "low"
 
 
-def _allocate(amount: int, services: list[ServiceData], cost: dict[int, int]) -> dict[int, int]:
-    """Распределяет деньги по услугам в переданном порядке, пока они не кончатся."""
-    allocated, remaining = {}, amount
-    for s in services:
-        part = min(cost[s.id], remaining)
-        allocated[s.id] = part
-        remaining -= part
-    return allocated
+def _paid_before(money_ends: float | None, renewals: int, first_due: float, service: ServiceData) -> int:
+    """Сколько продлений услуги успеют оплатить до момента, когда кончатся деньги (None — все)."""
+    if money_ends is None:
+        return renewals
+    # Продление ровно в момент money_ends — то самое, на которое уже не хватило.
+    return min(renewals, _renewals_by(money_ends - 1e-7, first_due, PERIOD_DAYS[service.payment_term]))
 
 
 def _no_score_reason(services: list[ServiceData]) -> dict:
@@ -144,11 +142,16 @@ def _account_reasons(scored: list[tuple[ServiceData, float, list[ContributionRes
             count[c.feature] += 1
             if c.feature not in best or c.points > best[c.feature][0].points:
                 best[c.feature] = (c, service)
-    reasons = [
-        {"feature": c.feature, "title": c.title, "text": c.text, "points": round(c.points, 2),
-         "serviceId": s.id, "serviceName": s.name, "services": count[c.feature]}
-        for c, s in best.values()
-    ]
+    features = all_features()
+    reasons = []
+    for c, s in best.values():
+        # Признак про клиента целиком не привязываем к услуге: иначе «Уже уходил — vps-1» читается так,
+        # будто уходила эта услуга. services = 0 — «относится к клиенту, а не к услугам».
+        per_account = features[c.feature].scope == "account"
+        reasons.append({"feature": c.feature, "title": c.title, "text": c.text, "points": round(c.points, 2),
+                        "serviceId": None if per_account else s.id,
+                        "serviceName": None if per_account else s.name,
+                        "services": 0 if per_account else count[c.feature]})
     return sorted(reasons, key=lambda r: -r["points"])
 
 
@@ -183,11 +186,16 @@ def score_account(
 
     available = account.balance + account.usable_bonus
     run_out = runway_days(live, first_due, available, horizon)
-    # Автопродление списывает сначала основной баланс, затем доступные бонусы, по порядку наступления продлений.
+    # Автопродление оплачивает каждое продление в момент наступления: сначала с основного баланса, потом
+    # доступными бонусами. Поэтому деньги распределяются по времени, как и в признаке нехватки средств:
+    # почасовая услуга не «забирает» весь месяц вперёд у месячной, которую нужно продлить раньше.
     # Услуга в prolong_wait не покрыта даже при автопродлении: сам статус означает, что автосписание не прошло.
-    auto = sorted((s for s in live if s.auto_prolong and s.status != "prolong_wait"), key=lambda s: (first_due[s.id], s.id))
-    secured = _allocate(account.balance, auto, cost)
-    by_bonus = _allocate(account.usable_bonus, auto, {s.id: cost[s.id] - secured[s.id] for s in auto})
+    auto = [s for s in live if s.auto_prolong and s.status != "prolong_wait"]
+    balance_ends = runway_days(auto, first_due, account.balance, horizon)
+    funds_end = runway_days(auto, first_due, account.balance + account.usable_bonus, horizon)
+    secured = {s.id: s.price * _paid_before(balance_ends, renewals[s.id], first_due[s.id], s) for s in auto}
+    by_bonus = {s.id: s.price * _paid_before(funds_end, renewals[s.id], first_due[s.id], s) - secured[s.id]
+                for s in auto}
 
     scored: list[tuple[ServiceData, float, list[ContributionResult]]] = []
     for s in live:

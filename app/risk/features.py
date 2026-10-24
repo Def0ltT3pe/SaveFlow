@@ -93,6 +93,7 @@ def suspended(ctx: ServiceContext) -> FeatureResult:
     title="Уже уходил",
     default_weight=15,
     description="Доля услуг клиента, которые уже удалены или заблокированы.",
+    scope="account",
 )
 def churn_history(ctx: ServiceContext) -> FeatureResult:
     total = len(ctx.account_services)

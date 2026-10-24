@@ -58,7 +58,8 @@ def test_money_uses_balance_only_for_autoprolong():
     acc = account(balance=300)
     r = score([service(1, auto=True, price=500, expires_in_days=5), service(2, auto=False, price=200, expires_in_days=6)], acc)
     by_id = {s.service.id: s for s in r.services}
-    assert by_id[1].secured_by_balance == 300 and by_id[1].at_risk == 200
+    # Автопродление не оплачивает продление частично: €3 на балансе не покрывают продление за €5
+    assert by_id[1].secured_by_balance == 0 and by_id[1].at_risk == 500
     assert by_id[2].secured_by_balance == 0 and by_id[2].at_risk == 200
     # Деньги — по вероятности ухода клиента, как в объяснении на панели
     assert r.expected_loss == pytest.approx(r.score / 100 * r.at_risk, abs=0.01)
@@ -221,3 +222,36 @@ def test_funds_text_separates_balance_and_bonus():
     assert "на балансе €2.00 и бонусах €30.00" in unlocked.reasons[0]["text"]
     assert "на балансе €2.00 (бонусы €30.00 заблокированы)" in locked.reasons[0]["text"]
     assert "€32.00" not in unlocked.reasons[0]["text"]
+
+
+# --- Видимые противоречия на панели ---------------------------------------------------
+
+
+def test_money_and_risk_agree_for_mixed_services():
+    # Как big-corp: почасовая услуга с ближайшим списанием и месячная, которую продлевать через 10 дней.
+    gpu = service(1, term="hour", price=3, expires_in_days=40 / 60 / 24)
+    web = service(2, term="month", price=1000, expires_in_days=10)
+    r = score([gpu, web], account(balance=2500))
+    by_id = {s.service.id: s for s in r.services}
+    assert by_id[2].at_risk == 0, "месячную продлят с баланса: денег на неё хватает к 10-му дню"
+    assert by_id[1].at_risk > 0, "почасовая останавливается, когда деньги кончатся"
+    funds = {c.feature: c for c in by_id[1].contributions}.get("insufficient_funds")
+    assert funds is not None and "кончатся через" in funds.text
+    # Сумма «гарантировано» ровно равна тому, что успеют списать до конца денег
+    assert by_id[1].secured_by_balance + by_id[2].secured_by_balance <= 2500
+
+
+def test_bonus_pays_after_balance_runs_out():
+    hourly = service(term="hour", price=10, expires_in_days=0.5 / 24)
+    r = score([hourly], account(balance=10 * 24 * 2, bonus=10 * 24 * 3, bonus_state="unlocked"))
+    s = r.services[0]
+    assert s.secured_by_balance == 480 and s.covered_by_bonus == 720
+    assert s.at_risk == s.horizon_revenue - 1200
+
+
+def test_account_level_reason_is_not_attached_to_a_service():
+    r = score([service(1, auto=False, expires_in_days=5), service(2, status="deleted")], account(balance=10_000))
+    history = next(x for x in r.reasons if x["feature"] == "churn_history")
+    assert history["serviceId"] is None and history["serviceName"] is None and history["services"] == 0
+    expiring = next(x for x in r.reasons if x["feature"] == "expiring_no_autoprolong")
+    assert expiring["serviceName"] == "s-1"

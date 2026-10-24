@@ -237,7 +237,7 @@ class Reason(CamelModel):
     points: float | None = None
     service_id: int | None = None
     service_name: str | None = None
-    services: int = Field(1, description="Сколько услуг клиента дают этот сигнал")
+    services: int = Field(1, description="Сколько услуг клиента дают этот сигнал; 0 — сигнал про клиента целиком")
 
 
 class Contribution(CamelModel):
