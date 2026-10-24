@@ -10,6 +10,4 @@ if [ "${SEED_ON_START:-1}" = "1" ]; then
     python -m app.risk.cli load data/data.json --if-empty
 fi
 
-# Ровно один воркер: токены сессий лежат в памяти процесса (app/core/security.py),
-# при нескольких воркерах вход «пропадал» бы на случайных запросах.
 exec uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1
