@@ -2,6 +2,8 @@ import copy
 import json
 import threading
 import time
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 import psycopg
 import pytest
@@ -365,3 +367,97 @@ def test_timeline_separates_fact_and_forecast(session, loaded):
     kinds = {p["kind"] for p in timeline["points"]}
     assert kinds == {"fact", "forecast"}
     assert sum(p["dueServices"] for p in timeline["points"]) > 0
+
+
+# --- График оттока: даты, прогноз, оценочные удаления ------------------------------------
+
+
+def _day(ts: datetime) -> str:
+    return ts.astimezone(timezone.utc).date().isoformat()
+
+
+def test_timeline_dates_go_day_by_day_around_as_of(session, loaded):
+    timeline = service.get_churn_timeline(session, days_back=7)
+    as_of = datetime.fromisoformat(timeline["asOf"])
+    fact = [p["date"] for p in timeline["points"] if p["kind"] == "fact"]
+    forecast = [p["date"] for p in timeline["points"] if p["kind"] == "forecast"]
+    assert fact == [_day(as_of - timedelta(days=i)) for i in range(7, -1, -1)]   # 7 дней назад … опорная дата
+    assert forecast == [_day(as_of + timedelta(days=i)) for i in range(31)]     # опорная дата … +30 дней
+
+
+def test_timeline_forecast_matches_customer_services(session, loaded):
+    timeline = service.get_churn_timeline(session)
+    as_of = datetime.fromisoformat(timeline["asOf"])
+    due, expected = defaultdict(int), defaultdict(float)
+    for c in service.get_customers(session, limit=500)["items"]:
+        for s in service.get_customer(session, c["id"])["services"]:
+            offset = max(s["daysToExpiry"], 0)
+            if s["scored"] and offset <= 30:
+                key = _day(as_of + timedelta(days=offset))
+                due[key] += 1
+                expected[key] += s["probability"]
+    forecast = {p["date"]: p for p in timeline["points"] if p["kind"] == "forecast"}
+    assert {d: p["dueServices"] for d, p in forecast.items() if p["dueServices"]} == dict(due)
+    for d, p in forecast.items():
+        assert p["expectedNonRenewals"] == pytest.approx(expected.get(d, 0), abs=1e-3)
+
+
+def test_deleted_services_without_history_get_estimated_date(session, loaded, source_data):
+    before = service.get_churn_timeline(session)
+    as_of = datetime.fromisoformat(before["asOf"])
+    data = copy.deepcopy(source_data)
+    owner = data["accounts"][0]["id"]
+
+    def gone(service_id, expired_days_ago):
+        expires = as_of - timedelta(days=expired_days_ago)
+        return {"id": service_id, "name": f"gone-{service_id}", "ownerId": owner, "paymentTerm": "month",
+                "autoProlong": False, "createdAt": (expires - timedelta(days=60)).isoformat(),
+                "expiresAt": expires.isoformat(), "status": "deleted", "price": 500}
+
+    # Удалены до того, как система их увидела: дата удаления оценивается как expiresAt + 5 дней
+    data["services"] += [gone(9001, 7), gone(9002, 40), gone(9003, 1)]
+    service.replace_snapshot(session, data)
+    after = service.get_churn_timeline(session)
+    assert after["asOf"] == before["asOf"]
+
+    def estimated(timeline):
+        return {p["date"]: p["estimatedDeletions"] for p in timeline["points"] if p["kind"] == "fact"}
+
+    diff = {d: n - estimated(before)[d] for d, n in estimated(after).items() if n != estimated(before)[d]}
+    # 9001: истекла 7 дней назад → удалена 2 дня назад; 9002 — вне окна графика; 9003 — удаление ещё впереди
+    assert diff == {_day(as_of - timedelta(days=2)): 1}
+
+    def deletions(timeline):
+        return [p["deletions"] for p in timeline["points"] if p["kind"] == "fact"]
+
+    assert deletions(after) == deletions(before)  # это оценка, а не факт удаления
+
+
+# --- Сводка: клиенты с высоким риском, услуги под риском, средний score -----------------
+
+
+def test_summary_high_risk_customers_match_customer_list(session, loaded):
+    summary = service.get_summary(session)
+    high = service.get_customers(session, levels=["high"], limit=500)["items"]
+    assert summary["accountsByLevel"]["high"] == len(high) > 0
+    assert summary["highRiskAtRisk"] == pytest.approx(sum(c["money"]["atRisk"] for c in high))
+    assert summary["highRiskBalance"] == sum(c["balance"] for c in high)
+    assert summary["highRiskWithdrawable"] == sum(c["withdrawBalance"] for c in high)
+
+
+def test_summary_average_score_ignores_customers_without_score(session, loaded):
+    items = service.get_customers(session, limit=500)["items"]
+    scores = [c["score"] for c in items if c["score"] is not None]
+    assert len(scores) < len(items)  # в наборе есть клиенты «Нет оценки»
+    assert service.get_summary(session)["averageScore"] == pytest.approx(sum(scores) / len(scores), abs=0.01)
+
+
+def test_summary_services_at_risk_follow_medium_threshold(session, loaded):
+    services = [s for c in service.get_customers(session, limit=500)["items"]
+                for s in service.get_customer(session, c["id"])["services"]]
+    summary = service.get_summary(session)
+    assert summary["servicesTotal"] == len(services) == 30
+    assert summary["servicesLive"] == sum(s["scored"] for s in services)
+    assert summary["servicesAtRisk"] == sum(s["scored"] and s["score"] >= 30 for s in services)
+    service.update_settings(session, {"thresholds": {"medium": 5}})
+    assert service.get_summary(session)["servicesAtRisk"] == sum(s["scored"] and s["score"] >= 5 for s in services)

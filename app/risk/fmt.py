@@ -1,5 +1,9 @@
+NBSP = "\u00a0"
+
+
 def eur(cents: float) -> str:
-    return f"€{cents / 100:,.2f}".replace(",", " ")
+    """«1 081,11 €» — как суммы на панели (ru-RU); пробелы неразрывные, чтобы сумму не разрывало переносом строки."""
+    return f"{cents / 100:,.2f}".replace(",", NBSP).replace(".", ",") + NBSP + "€"
 
 
 def duration(days: float) -> str:

@@ -66,7 +66,7 @@ def insufficient_funds(ctx: ServiceContext) -> FeatureResult:
 
 
 def _funds_text(ctx: ServiceContext) -> str:
-    """«на балансе €2.00 и бонусах €30.00» — без смешивания реальных денег и бонусов в одну цифру."""
+    """«на балансе 2,00 € и бонусах 30,00 €» — без смешивания реальных денег и бонусов в одну цифру."""
     a = ctx.account
     text = f"на балансе {eur(a.balance)}"
     if a.usable_bonus:
