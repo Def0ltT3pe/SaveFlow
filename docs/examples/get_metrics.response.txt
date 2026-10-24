@@ -1,35 +1,38 @@
 # HELP churn_customers Customers by churn risk level
 # TYPE churn_customers gauge
-churn_customers{level="high"} 11
-churn_customers{level="medium"} 36
-churn_customers{level="low"} 122
+churn_customers{level="high"} 18
+churn_customers{level="medium"} 37
+churn_customers{level="low"} 114
 churn_customers{level="none"} 31
 # HELP churn_average_score Average churn risk score of scored customers (0-100)
 # TYPE churn_average_score gauge
-churn_average_score 19.98
+churn_average_score 22.9
 # HELP churn_services Services by state
 # TYPE churn_services gauge
 churn_services{state="total"} 401
 churn_services{state="live"} 319
-churn_services{state="at_risk"} 62
+churn_services{state="at_risk"} 76
 # HELP churn_expected_loss_eur Expected revenue loss over the forecast horizon, EUR
 # TYPE churn_expected_loss_eur gauge
-churn_expected_loss_eur{horizon_days="30"} 339.63
+churn_expected_loss_eur{horizon_days="30"} 447.68
 # HELP churn_revenue_at_risk_eur Horizon revenue not secured by balances, EUR
 # TYPE churn_revenue_at_risk_eur gauge
-churn_revenue_at_risk_eur{horizon_days="30"} 869.98
+churn_revenue_at_risk_eur{horizon_days="30"} 888.4
 # HELP churn_horizon_revenue_eur Revenue due over the forecast horizon, EUR
 # TYPE churn_horizon_revenue_eur gauge
 churn_horizon_revenue_eur{horizon_days="30"} 2006.6
+# HELP churn_covered_by_bonus_eur Horizon renewals that autoprolong pays with bonuses, EUR
+# TYPE churn_covered_by_bonus_eur gauge
+churn_covered_by_bonus_eur{horizon_days="30"} 37.09
 # HELP churn_monthly_revenue_eur Monthly recurring revenue of live services, EUR
 # TYPE churn_monthly_revenue_eur gauge
 churn_monthly_revenue_eur 1963.53
 # HELP churn_expected_monthly_loss_eur Expected monthly recurring revenue loss, EUR
 # TYPE churn_expected_monthly_loss_eur gauge
-churn_expected_monthly_loss_eur 334.43
+churn_expected_monthly_loss_eur 548.65
 # HELP churn_last_recalculation_timestamp_seconds Time of the last model recalculation
 # TYPE churn_last_recalculation_timestamp_seconds gauge
-churn_last_recalculation_timestamp_seconds 1792780943.845
+churn_last_recalculation_timestamp_seconds 1792823064.876
 # HELP churn_model_settings_version Version of model settings used in the last recalculation
 # TYPE churn_model_settings_version gauge
-churn_model_settings_version 1
+churn_model_settings_version 101

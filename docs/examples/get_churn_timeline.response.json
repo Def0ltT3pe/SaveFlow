@@ -37,8 +37,8 @@
     {
       "date": "2026-10-19",
       "kind": "fact",
-      "deletions": 3,
-      "estimatedDeletions": 0,
+      "deletions": 0,
+      "estimatedDeletions": 2,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
@@ -46,7 +46,7 @@
       "date": "2026-10-20",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 0,
+      "estimatedDeletions": 1,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
@@ -54,15 +54,15 @@
       "date": "2026-10-21",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 0,
+      "estimatedDeletions": 4,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
     {
       "date": "2026-10-22",
       "kind": "fact",
-      "deletions": 15,
-      "estimatedDeletions": 0,
+      "deletions": 4,
+      "estimatedDeletions": 7,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
@@ -72,7 +72,7 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 61,
-      "expectedNonRenewals": 18.5774
+      "expectedNonRenewals": 21.9968
     },
     {
       "date": "2026-10-23",
@@ -80,7 +80,7 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 9,
-      "expectedNonRenewals": 1.7539
+      "expectedNonRenewals": 1.6615
     },
     {
       "date": "2026-10-24",
@@ -88,7 +88,7 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 8,
-      "expectedNonRenewals": 0.2451
+      "expectedNonRenewals": 0.6697
     },
     {
       "date": "2026-10-25",
@@ -96,7 +96,7 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 4,
-      "expectedNonRenewals": 0.3785
+      "expectedNonRenewals": 0.6287
     }
   ]
 }

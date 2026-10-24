@@ -8,8 +8,8 @@
       "bonusBalance": 0,
       "bonusState": "locked",
       "totalReplenished": 6006,
-      "score": 81.74,
-      "loyalty": 18.26,
+      "score": 92.5,
+      "loyalty": 7.5,
       "level": "high",
       "mainReason": "Ожидает оплаты: без неё будет удалена через 19 ч",
       "reasons": [
@@ -25,8 +25,8 @@
         {
           "feature": "insufficient_funds",
           "title": "Не хватает средств на продление",
-          "text": "На балансе €0.30, а продления за 30 дн. стоят €9.83",
-          "points": 24.24,
+          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €0.30, а продления за 30 дн. стоят €9.83",
+          "points": 35.0,
           "serviceId": 43,
           "serviceName": "srv-0021-2",
           "services": 1
@@ -36,9 +36,9 @@
           "title": "Уже уходил",
           "text": "Удалено или заблокировано 1 из 2 услуг клиента",
           "points": 7.5,
-          "serviceId": 43,
-          "serviceName": "srv-0021-2",
-          "services": 1
+          "serviceId": null,
+          "serviceName": null,
+          "services": 0
         },
         {
           "feature": "unpaid_transactions",
@@ -55,9 +55,10 @@
         "monthlyRevenue": 81.92,
         "horizonRevenue": 983.0,
         "securedByBalance": 0.0,
+        "coveredByBonus": 0.0,
         "atRisk": 983.0,
-        "expectedLoss": 803.5,
-        "expectedMonthlyLoss": 66.96
+        "expectedLoss": 909.28,
+        "expectedMonthlyLoss": 75.77
       }
     },
     {
@@ -68,8 +69,8 @@
       "bonusBalance": 3,
       "bonusState": "locked",
       "totalReplenished": 5809,
-      "score": 78.75,
-      "loyalty": 21.25,
+      "score": 88.75,
+      "loyalty": 11.25,
       "level": "high",
       "mainReason": "Ожидает оплаты: без неё будет удалена через 18 ч",
       "reasons": [
@@ -85,10 +86,10 @@
         {
           "feature": "insufficient_funds",
           "title": "Не хватает средств на продление",
-          "text": "На балансе €2.96, а продления за 30 дн. стоят €24.03",
-          "points": 25.0,
-          "serviceId": 394,
-          "serviceName": "srv-0197-2",
+          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03",
+          "points": 35.0,
+          "serviceId": 393,
+          "serviceName": "srv-0197-1",
           "services": 3
         },
         {
@@ -123,9 +124,9 @@
           "title": "Уже уходил",
           "text": "Удалено или заблокировано 1 из 4 услуг клиента",
           "points": 3.75,
-          "serviceId": 393,
-          "serviceName": "srv-0197-1",
-          "services": 3
+          "serviceId": null,
+          "serviceName": null,
+          "services": 0
         }
       ],
       "liveServices": 3,
@@ -133,60 +134,98 @@
         "monthlyRevenue": 1310.49,
         "horizonRevenue": 2403.0,
         "securedByBalance": 0.0,
+        "coveredByBonus": 0.0,
         "atRisk": 2403.0,
-        "expectedLoss": 1607.85,
-        "expectedMonthlyLoss": 897.49
+        "expectedLoss": 2132.66,
+        "expectedMonthlyLoss": 1163.06
       }
     },
     {
-      "id": 154,
-      "email": "client-0154@example.test",
-      "balance": 24,
+      "id": 175,
+      "email": "client-0175@example.test",
+      "balance": 174,
       "withdrawBalance": 0,
       "bonusBalance": 0,
       "bonusState": "locked",
-      "totalReplenished": 3844,
-      "score": 74.79,
-      "loyalty": 25.21,
+      "totalReplenished": 6555,
+      "score": 87.5,
+      "loyalty": 12.5,
       "level": "high",
-      "mainReason": "Ожидает оплаты: без неё будет удалена через 1 дн.",
+      "mainReason": "Ожидает оплаты: без неё будет удалена через 2 дн.",
       "reasons": [
         {
           "feature": "prolong_wait",
           "title": "Ожидает оплаты",
-          "text": "Ожидает оплаты: без неё будет удалена через 1 дн.",
+          "text": "Ожидает оплаты: без неё будет удалена через 2 дн.",
           "points": 45.0,
-          "serviceId": 312,
-          "serviceName": "srv-0154-2",
+          "serviceId": 351,
+          "serviceName": "srv-0175-1",
           "services": 1
         },
         {
           "feature": "insufficient_funds",
           "title": "Не хватает средств на продление",
-          "text": "На балансе €0.24, а продления за 30 дн. стоят €34.02",
-          "points": 25.0,
-          "serviceId": 311,
-          "serviceName": "srv-0154-1",
+          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €1.74, а продления за 30 дн. стоят €16.71",
+          "points": 35.0,
+          "serviceId": 351,
+          "serviceName": "srv-0175-1",
           "services": 2
+        },
+        {
+          "feature": "expiring_no_autoprolong",
+          "title": "Скоро истекает без автопродления",
+          "text": "Истекает через 5 дн., автопродление выключено",
+          "points": 25.1,
+          "serviceId": 352,
+          "serviceName": "srv-0175-2",
+          "services": 1
+        },
+        {
+          "feature": "suspended",
+          "title": "Сервер выключен",
+          "text": "Сервер выключен пользователем: услугой не пользуются",
+          "points": 10.0,
+          "serviceId": 352,
+          "serviceName": "srv-0175-2",
+          "services": 1
+        },
+        {
+          "feature": "churn_history",
+          "title": "Уже уходил",
+          "text": "Удалено или заблокировано 1 из 3 услуг клиента",
+          "points": 5.0,
+          "serviceId": null,
+          "serviceName": null,
+          "services": 0
         },
         {
           "feature": "unpaid_transactions",
           "title": "Неоплаченные платежи",
-          "text": "Не проведено 4 из 8 платежей по услуге",
-          "points": 5.0,
-          "serviceId": 312,
-          "serviceName": "srv-0154-2",
+          "text": "Не проведено 2 из 8 платежей по услуге",
+          "points": 2.5,
+          "serviceId": 351,
+          "serviceName": "srv-0175-1",
+          "services": 1
+        },
+        {
+          "feature": "new_service",
+          "title": "Новая услуга",
+          "text": "Подключена 25 дн. назад",
+          "points": 0.82,
+          "serviceId": 352,
+          "serviceName": "srv-0175-2",
           "services": 1
         }
       ],
       "liveServices": 2,
       "money": {
-        "monthlyRevenue": 3440.0,
-        "horizonRevenue": 3402.0,
-        "securedByBalance": 24.0,
-        "atRisk": 3378.0,
-        "expectedLoss": 2280.44,
-        "expectedMonthlyLoss": 2314.86
+        "monthlyRevenue": 1512.62,
+        "horizonRevenue": 1671.0,
+        "securedByBalance": 0.0,
+        "coveredByBonus": 0.0,
+        "atRisk": 1671.0,
+        "expectedLoss": 1462.12,
+        "expectedMonthlyLoss": 1323.54
       }
     }
   ],

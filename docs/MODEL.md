@@ -67,13 +67,15 @@ expectedMonthlyLoss   = score клиента / 100 × выручка клиен�
 Написать функцию в `app/risk/features.py`:
 
 ```python
-@feature("big_spender_drop", title="Мало пополняет", default_weight=10,
-         description="Пополнил меньше, чем стоят его услуги за год.")
-def big_spender_drop(ctx: ServiceContext) -> FeatureResult:
-    yearly = ctx.service.price * 365 / PERIOD_DAYS[ctx.service.payment_term]
-    if ctx.account.total_replenished >= yearly:
+# app/risk/features.py; в импорты файла добавить: from app.risk.terms import monthly_price
+@feature("low_replenishment", title="Мало пополняет", default_weight=10,
+         description="За всё время пополнил меньше, чем стоит его услуга за год.")
+def low_replenishment(ctx: ServiceContext) -> FeatureResult:
+    yearly = monthly_price(ctx.service.price, ctx.service.payment_term) * 12
+    if yearly == 0 or ctx.account.total_replenished >= yearly:
         return NO_SIGNAL
-    return FeatureResult(1 - ctx.account.total_replenished / yearly, "Пополнения меньше годовой стоимости")
+    return FeatureResult(1 - ctx.account.total_replenished / yearly,
+                         f"Пополнил {eur(ctx.account.total_replenished)} — меньше годовой стоимости услуги")
 ```
 
 Больше ничего менять не нужно. Вес появится в `GET /api/v1/model/settings`, его можно менять через PATCH, вклад и причина попадут в оценки. Миграция не нужна: настройки хранятся в JSONB, а веса новых признаков берутся по умолчанию.

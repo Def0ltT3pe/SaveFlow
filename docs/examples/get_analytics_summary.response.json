@@ -1,34 +1,35 @@
 {
   "run": {
-    "id": 4,
-    "computedAt": "2026-10-23T18:42:23.845000Z",
+    "id": 114,
+    "computedAt": "2026-10-24T06:24:24.876000Z",
     "asOf": "2026-10-22T15:00:00Z",
-    "settingsVersion": 1,
-    "snapshotId": 4,
+    "settingsVersion": 101,
+    "snapshotId": 101,
     "reason": "snapshot"
   },
   "horizonDays": 30,
   "accountsTotal": 200,
   "accountsByLevel": {
-    "high": 11,
-    "medium": 36,
-    "low": 122,
+    "high": 18,
+    "medium": 37,
+    "low": 114,
     "none": 31
   },
-  "averageScore": 19.98,
+  "averageScore": 22.9,
   "servicesTotal": 401,
   "servicesLive": 319,
-  "servicesAtRisk": 62,
+  "servicesAtRisk": 76,
   "money": {
     "monthlyRevenue": 196352.91,
     "horizonRevenue": 200660.0,
-    "securedByBalance": 113662.0,
-    "atRisk": 86998.0,
-    "expectedLoss": 33962.78,
-    "expectedMonthlyLoss": 33443.26
+    "securedByBalance": 108111.0,
+    "coveredByBonus": 3709.0,
+    "atRisk": 88840.0,
+    "expectedLoss": 44768.45,
+    "expectedMonthlyLoss": 54865.32
   },
-  "highRiskAtRisk": 16994.0,
-  "highRiskBalance": 1669.0,
-  "highRiskWithdrawable": 8.0,
-  "explanation": "Ожидаемая потеря за 30 дн.: €339.63. Это сумма по всем действующим услугам: вероятность ухода клиента (score / 100) × деньги, которые клиент должен заплатить за продления в ближайшие 30 дн. и которые ещё не покрыты его балансом при включённом автопродлении. Всего за 30 дн. ожидается €2 006.60, из них €1 136.62 уже лежит на балансах и спишется автоматически, под риском €869.98. Ежемесячная выручка €1 963.53, ожидаемая потеря в месяц €334.43."
+  "highRiskAtRisk": 27664.0,
+  "highRiskBalance": 7187.0,
+  "highRiskWithdrawable": 213.0,
+  "explanation": "Ожидаемая потеря за 30 дн.: €447.68. По каждому клиенту: вероятность его ухода (score / 100) × сумма под угрозой — продления за ближайшие 30 дн., которые автопродление не спишет ни с баланса, ни с бонусов. Всего продлений на €2 006.60: €1 081.11 спишется с балансов, €37.09 оплатят бонусы, под угрозой €888.40. Ежемесячная выручка €1 963.53, ожидаемая потеря в месяц €548.65."
 }

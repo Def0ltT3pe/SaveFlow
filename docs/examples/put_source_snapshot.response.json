@@ -1,16 +1,16 @@
 {
-  "snapshotId": 4,
+  "snapshotId": 101,
   "referenceDate": "2026-10-22T15:00:00Z",
   "accounts": 200,
   "services": 401,
   "transactions": 3362,
-  "statusChanges": 0,
+  "statusChanges": 397,
   "run": {
-    "id": 4,
-    "computedAt": "2026-10-23T18:42:23.845000Z",
+    "id": 114,
+    "computedAt": "2026-10-24T06:24:24.876000Z",
     "asOf": "2026-10-22T15:00:00Z",
-    "settingsVersion": 1,
-    "snapshotId": 4,
+    "settingsVersion": 101,
+    "snapshotId": 101,
     "reason": "snapshot"
   }
 }

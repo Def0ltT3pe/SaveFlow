@@ -1,113 +1,105 @@
 {
-  "id": 21,
-  "email": "client-0021@example.test",
-  "balance": 30,
-  "withdrawBalance": 8,
-  "bonusBalance": 0,
+  "id": 197,
+  "email": "client-0197@example.test",
+  "balance": 296,
+  "withdrawBalance": 0,
+  "bonusBalance": 3,
   "bonusState": "locked",
-  "totalReplenished": 6006,
-  "score": 81.74,
-  "loyalty": 18.26,
+  "totalReplenished": 5809,
+  "score": 88.75,
+  "loyalty": 11.25,
   "level": "high",
-  "mainReason": "Ожидает оплаты: без неё будет удалена через 19 ч",
+  "mainReason": "Ожидает оплаты: без неё будет удалена через 18 ч",
   "reasons": [
     {
       "feature": "prolong_wait",
       "title": "Ожидает оплаты",
-      "text": "Ожидает оплаты: без неё будет удалена через 19 ч",
+      "text": "Ожидает оплаты: без неё будет удалена через 18 ч",
       "points": 45.0,
-      "serviceId": 43,
-      "serviceName": "srv-0021-2",
-      "services": 1
+      "serviceId": 393,
+      "serviceName": "srv-0197-1",
+      "services": 2
     },
     {
       "feature": "insufficient_funds",
       "title": "Не хватает средств на продление",
-      "text": "На балансе €0.30, а продления за 30 дн. стоят €9.83",
-      "points": 24.24,
-      "serviceId": 43,
-      "serviceName": "srv-0021-2",
+      "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03",
+      "points": 35.0,
+      "serviceId": 393,
+      "serviceName": "srv-0197-1",
+      "services": 3
+    },
+    {
+      "feature": "expiring_no_autoprolong",
+      "title": "Скоро истекает без автопродления",
+      "text": "Истекает через 16 дн., автопродление выключено",
+      "points": 13.85,
+      "serviceId": 394,
+      "serviceName": "srv-0197-2",
       "services": 1
     },
     {
-      "feature": "churn_history",
-      "title": "Уже уходил",
-      "text": "Удалено или заблокировано 1 из 2 услуг клиента",
-      "points": 7.5,
-      "serviceId": 43,
-      "serviceName": "srv-0021-2",
+      "feature": "suspended",
+      "title": "Сервер выключен",
+      "text": "Сервер выключен пользователем: услугой не пользуются",
+      "points": 10.0,
+      "serviceId": 394,
+      "serviceName": "srv-0197-2",
       "services": 1
     },
     {
       "feature": "unpaid_transactions",
       "title": "Неоплаченные платежи",
-      "text": "Не проведено 1 из 2 платежей по услуге",
+      "text": "Не проведено 4 из 8 платежей по услуге",
       "points": 5.0,
-      "serviceId": 43,
-      "serviceName": "srv-0021-2",
-      "services": 1
-    }
-  ],
-  "liveServices": 1,
-  "money": {
-    "monthlyRevenue": 81.92,
-    "horizonRevenue": 983.0,
-    "securedByBalance": 0.0,
-    "atRisk": 983.0,
-    "expectedLoss": 803.5,
-    "expectedMonthlyLoss": 66.96
-  },
-  "asOf": "2026-10-22T15:00:00Z",
-  "computedAt": "2026-10-23T18:42:23.845000Z",
-  "services": [
-    {
-      "id": 42,
-      "name": "srv-0021-1",
-      "status": "deleted",
-      "paymentTerm": "year",
-      "autoProlong": false,
-      "price": 921,
-      "createdAt": "2025-10-17T06:20:16.474000Z",
-      "expiresAt": "2026-10-17T06:20:16.474000Z",
-      "scored": false,
-      "score": null,
-      "probability": null,
-      "daysToExpiry": -5.361,
-      "renewalsInHorizon": 0,
-      "monthlyPrice": 76.75,
-      "horizonRevenue": 0.0,
-      "securedByBalance": 0.0,
-      "atRisk": 0.0,
-      "expectedLoss": 0.0,
-      "expectedMonthlyLoss": 0.0,
-      "contributions": [],
-      "transactions": {
-        "total": 2,
-        "performed": 1,
-        "notPerformed": 1,
-        "lastPerformedAt": "2025-10-17T06:21:51.474000Z"
-      }
+      "serviceId": 393,
+      "serviceName": "srv-0197-1",
+      "services": 2
     },
     {
-      "id": 43,
-      "name": "srv-0021-2",
+      "feature": "churn_history",
+      "title": "Уже уходил",
+      "text": "Удалено или заблокировано 1 из 4 услуг клиента",
+      "points": 3.75,
+      "serviceId": null,
+      "serviceName": null,
+      "services": 0
+    }
+  ],
+  "liveServices": 3,
+  "money": {
+    "monthlyRevenue": 1310.49,
+    "horizonRevenue": 2403.0,
+    "securedByBalance": 0.0,
+    "coveredByBonus": 0.0,
+    "atRisk": 2403.0,
+    "expectedLoss": 2132.66,
+    "expectedMonthlyLoss": 1163.06
+  },
+  "asOf": "2026-10-22T15:00:00Z",
+  "computedAt": "2026-10-24T06:24:24.876000Z",
+  "services": [
+    {
+      "id": 393,
+      "name": "srv-0197-1",
       "status": "prolong_wait",
-      "paymentTerm": "year",
+      "paymentTerm": "week",
       "autoProlong": false,
-      "price": 983,
-      "createdAt": "2025-10-18T10:21:36.709000Z",
-      "expiresAt": "2026-10-18T10:21:36.709000Z",
+      "price": 190,
+      "createdAt": "2026-05-10T09:15:56.331000Z",
+      "expiresAt": "2026-10-18T09:15:56.331000Z",
       "scored": true,
-      "score": 81.74,
-      "probability": 0.8174,
-      "daysToExpiry": -4.193,
-      "renewalsInHorizon": 1,
-      "monthlyPrice": 81.92,
-      "horizonRevenue": 983.0,
+      "score": 88.75,
+      "probability": 0.8875,
+      "daysToExpiry": -4.239,
+      "renewalsInHorizon": 5,
+      "monthlyPrice": 826.16,
+      "horizonRevenue": 950.0,
       "securedByBalance": 0.0,
-      "atRisk": 983.0,
-      "expectedLoss": 803.5,
-      "expectedMonthlyLoss": 66.96,
+      "coveredByBonus": 0.0,
+      "atRisk": 950.0,
+      "expectedLoss": 843.12,
+      "expectedMonthlyLoss": 733.22,
       "contributions": [
         {
           "feature": "prolong_wait",
@@ -115,23 +107,168 @@
           "value": 1.0,
           "weight": 45.0,
           "points": 45.0,
-          "text": "Ожидает оплаты: без неё будет удалена через 19 ч"
+          "text": "Ожидает оплаты: без неё будет удалена через 18 ч"
         },
         {
           "feature": "insufficient_funds",
           "title": "Не хватает средств на продление",
-          "value": 0.9695,
-          "weight": 25.0,
-          "points": 24.24,
-          "text": "На балансе €0.30, а продления за 30 дн. стоят €9.83"
+          "value": 1.0,
+          "weight": 35.0,
+          "points": 35.0,
+          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03"
+        },
+        {
+          "feature": "unpaid_transactions",
+          "title": "Неоплаченные платежи",
+          "value": 0.5,
+          "weight": 10.0,
+          "points": 5.0,
+          "text": "Не проведено 4 из 8 платежей по услуге"
         },
         {
           "feature": "churn_history",
           "title": "Уже уходил",
-          "value": 0.5,
+          "value": 0.25,
           "weight": 15.0,
-          "points": 7.5,
-          "text": "Удалено или заблокировано 1 из 2 услуг клиента"
+          "points": 3.75,
+          "text": "Удалено или заблокировано 1 из 4 услуг клиента"
+        }
+      ],
+      "transactions": {
+        "total": 8,
+        "performed": 4,
+        "notPerformed": 4,
+        "lastPerformedAt": "2026-10-11T09:17:32.331000Z"
+      }
+    },
+    {
+      "id": 394,
+      "name": "srv-0197-2",
+      "status": "suspended",
+      "paymentTerm": "quarter_year",
+      "autoProlong": false,
+      "price": 805,
+      "createdAt": "2026-08-07T18:37:57.899000Z",
+      "expiresAt": "2026-11-07T18:37:57.899000Z",
+      "scored": true,
+      "score": 53.18,
+      "probability": 0.5318,
+      "daysToExpiry": 16.151,
+      "renewalsInHorizon": 1,
+      "monthlyPrice": 268.33,
+      "horizonRevenue": 805.0,
+      "securedByBalance": 0.0,
+      "coveredByBonus": 0.0,
+      "atRisk": 805.0,
+      "expectedLoss": 714.44,
+      "expectedMonthlyLoss": 238.15,
+      "contributions": [
+        {
+          "feature": "insufficient_funds",
+          "title": "Не хватает средств на продление",
+          "value": 0.7308,
+          "weight": 35.0,
+          "points": 25.58,
+          "text": "Денег не хватит на ближайшее продление через 16 дн.: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03"
+        },
+        {
+          "feature": "expiring_no_autoprolong",
+          "title": "Скоро истекает без автопродления",
+          "value": 0.4616,
+          "weight": 30.0,
+          "points": 13.85,
+          "text": "Истекает через 16 дн., автопродление выключено"
+        },
+        {
+          "feature": "suspended",
+          "title": "Сервер выключен",
+          "value": 1.0,
+          "weight": 10.0,
+          "points": 10.0,
+          "text": "Сервер выключен пользователем: услугой не пользуются"
+        },
+        {
+          "feature": "churn_history",
+          "title": "Уже уходил",
+          "value": 0.25,
+          "weight": 15.0,
+          "points": 3.75,
+          "text": "Удалено или заблокировано 1 из 4 услуг клиента"
+        }
+      ],
+      "transactions": {
+        "total": 1,
+        "performed": 1,
+        "notPerformed": 0,
+        "lastPerformedAt": "2026-08-07T18:39:57.899000Z"
+      }
+    },
+    {
+      "id": 395,
+      "name": "srv-0197-3",
+      "status": "deleted",
+      "paymentTerm": "month",
+      "autoProlong": false,
+      "price": 357,
+      "createdAt": "2026-08-17T11:59:31.960000Z",
+      "expiresAt": "2026-10-17T11:59:31.960000Z",
+      "scored": false,
+      "score": null,
+      "probability": null,
+      "daysToExpiry": -5.125,
+      "renewalsInHorizon": 0,
+      "monthlyPrice": 357.0,
+      "horizonRevenue": 0.0,
+      "securedByBalance": 0.0,
+      "coveredByBonus": 0.0,
+      "atRisk": 0.0,
+      "expectedLoss": 0.0,
+      "expectedMonthlyLoss": 0.0,
+      "contributions": [],
+      "transactions": {
+        "total": 3,
+        "performed": 2,
+        "notPerformed": 1,
+        "lastPerformedAt": "2026-09-17T00:00:55.960000Z"
+      }
+    },
+    {
+      "id": 396,
+      "name": "srv-0197-4",
+      "status": "prolong_wait",
+      "paymentTerm": "quarter_year",
+      "autoProlong": false,
+      "price": 648,
+      "createdAt": "2026-07-18T07:21:27.755000Z",
+      "expiresAt": "2026-10-18T07:21:27.755000Z",
+      "scored": true,
+      "score": 88.75,
+      "probability": 0.8875,
+      "daysToExpiry": -4.318,
+      "renewalsInHorizon": 1,
+      "monthlyPrice": 216.0,
+      "horizonRevenue": 648.0,
+      "securedByBalance": 0.0,
+      "coveredByBonus": 0.0,
+      "atRisk": 648.0,
+      "expectedLoss": 575.1,
+      "expectedMonthlyLoss": 191.7,
+      "contributions": [
+        {
+          "feature": "prolong_wait",
+          "title": "Ожидает оплаты",
+          "value": 1.0,
+          "weight": 45.0,
+          "points": 45.0,
+          "text": "Ожидает оплаты: без неё будет удалена через 16 ч"
+        },
+        {
+          "feature": "insufficient_funds",
+          "title": "Не хватает средств на продление",
+          "value": 1.0,
+          "weight": 35.0,
+          "points": 35.0,
+          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03"
         },
         {
           "feature": "unpaid_transactions",
@@ -140,13 +277,21 @@
           "weight": 10.0,
           "points": 5.0,
           "text": "Не проведено 1 из 2 платежей по услуге"
+        },
+        {
+          "feature": "churn_history",
+          "title": "Уже уходил",
+          "value": 0.25,
+          "weight": 15.0,
+          "points": 3.75,
+          "text": "Удалено или заблокировано 1 из 4 услуг клиента"
         }
       ],
       "transactions": {
         "total": 2,
         "performed": 1,
         "notPerformed": 1,
-        "lastPerformedAt": "2025-10-18T10:21:58.709000Z"
+        "lastPerformedAt": "2026-07-18T07:22:16.755000Z"
       }
     }
   ]

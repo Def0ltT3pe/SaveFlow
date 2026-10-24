@@ -26,12 +26,13 @@
     "monthlyRevenue": 0.0,
     "horizonRevenue": 0.0,
     "securedByBalance": 0.0,
+    "coveredByBonus": 0.0,
     "atRisk": 0.0,
     "expectedLoss": 0.0,
     "expectedMonthlyLoss": 0.0
   },
   "asOf": "2026-10-22T15:00:00Z",
-  "computedAt": "2026-10-23T18:42:23.845000Z",
+  "computedAt": "2026-10-24T06:24:24.876000Z",
   "services": [
     {
       "id": 15,
@@ -50,6 +51,7 @@
       "monthlyPrice": 78.83,
       "horizonRevenue": 0.0,
       "securedByBalance": 0.0,
+      "coveredByBonus": 0.0,
       "atRisk": 0.0,
       "expectedLoss": 0.0,
       "expectedMonthlyLoss": 0.0,
@@ -78,6 +80,7 @@
       "monthlyPrice": 824.0,
       "horizonRevenue": 0.0,
       "securedByBalance": 0.0,
+      "coveredByBonus": 0.0,
       "atRisk": 0.0,
       "expectedLoss": 0.0,
       "expectedMonthlyLoss": 0.0,
