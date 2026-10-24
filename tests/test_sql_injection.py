@@ -54,6 +54,25 @@ def test_search_still_finds_real_matches(session, loaded):
     assert service.get_customers(session, search="USER-0005")["total"] == 1
 
 
+@pytest.mark.parametrize("search", ["7", "#7", " 7 "])
+def test_search_finds_customer_by_id(session, loaded, search):
+    ids = [c["id"] for c in service.get_customers(session, search=search)["items"]]
+    assert 7 in ids
+
+
+def test_search_by_id_is_exact_and_combines_with_email(session, loaded):
+    ids = {c["id"] for c in service.get_customers(session, search="1")["items"]}
+    # ID 1 точно, плюс все, у кого «1» есть в email (user-0001, user-0010)
+    assert ids == {1, 10}
+
+
+@pytest.mark.parametrize("search", ["99999999999999999999", "#", "٣", "7; DROP TABLE accounts"])
+def test_search_text_that_is_not_an_id(session, loaded, search):
+    page = service.get_customers(session, search=search)
+    assert page["total"] == 0
+    assert session.scalar(select(func.count()).select_from(Account)) == 10
+
+
 @pytest.mark.parametrize("kwargs", [
     {"sort": "id; DROP TABLE accounts"},
     {"sort": "score DESC, (SELECT 1)"},

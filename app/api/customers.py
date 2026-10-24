@@ -13,7 +13,7 @@ def list_customers(
     sort: SortField = "score",
     order: SortOrder = "desc",
     level: list[RiskLevel] | None = Query(None, description="Фильтр по уровням, можно несколько"),
-    search: str | None = Query(None, description="Подстрока email"),
+    search: str | None = Query(None, description="Подстрока email или ID клиента (42 или #42)"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),

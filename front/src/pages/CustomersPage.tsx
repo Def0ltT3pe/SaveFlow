@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getCustomers, useLive } from '../api/client';
 import Money from '../components/Money';
@@ -19,10 +19,17 @@ export default function CustomersPage() {
   const [sortBy, setSortBy] = useState<CustomerSortField>('score');
   const [order, setOrder] = useState<SortOrder>('desc');
   const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+
+  // запрос уходит, когда пользователь перестал печатать, а не на каждую букву
+  useEffect(() => {
+    const t = window.setTimeout(() => setQuery(search.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
 
   const { data, error, loading } = useLive(
-    () => getCustomers({ sortBy, order, riskLevel: level, search: search.trim() || undefined }),
-    [sortBy, order, level, search],
+    () => getCustomers({ sortBy, order, riskLevel: level, search: query || undefined }),
+    [sortBy, order, level, query],
   );
 
   const toggleSort = (f: CustomerSortField) => {

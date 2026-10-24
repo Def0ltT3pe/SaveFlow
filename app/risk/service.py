@@ -2,7 +2,7 @@ import functools
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import delete, func, insert, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -291,6 +291,15 @@ def _customer_fields(a: Account, r: AccountRisk | None) -> dict:
     )
 
 
+def _search_id(search: str) -> int | None:
+    """ID клиента из строки поиска: «42» или «#42». Число вне BIGINT — не ID, а просто текст."""
+    digits = search.removeprefix("#")
+    if not digits.isascii() or not digits.isdigit():
+        return None
+    value = int(digits)
+    return value if 1 <= value <= BIGINT_MAX else None
+
+
 @_releases_connection
 def get_customers(
     session: Session,
@@ -305,7 +314,8 @@ def get_customers(
     """Рейтинг клиентов.
 
     sort: id | email | balance | totalReplenished | score | expectedLoss; order: asc | desc.
-    levels: фильтр по уровням (high/medium/low/none), search: подстрока email.
+    levels: фильтр по уровням (high/medium/low/none).
+    search: подстрока email или ID клиента целиком («42» или «#42» найдёт клиента 42 и email с «42»).
     Клиенты без оценки (score = null) при сортировке по score всегда в конце.
     """
     if not isinstance(sort, str) or sort not in SORT_COLUMNS:
@@ -328,9 +338,13 @@ def get_customers(
     stmt = select(Account, AccountRisk).outerjoin(AccountRisk, AccountRisk.account_id == Account.id)
     if levels:
         stmt = stmt.where(func.coalesce(AccountRisk.level, "none").in_(levels))
+    search = search.strip() if search else ""
     if search:
         # autoescape экранирует % и _: строка поиска ищется буквально и уходит в БД параметром.
-        stmt = stmt.where(Account.email.icontains(search, autoescape=True))
+        condition = Account.email.icontains(search, autoescape=True)
+        if (customer_id := _search_id(search)) is not None:
+            condition = or_(condition, Account.id == customer_id)
+        stmt = stmt.where(condition)
     total = session.scalar(select(func.count()).select_from(stmt.subquery()))
 
     column = SORT_COLUMNS[sort]
