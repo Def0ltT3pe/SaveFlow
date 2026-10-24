@@ -131,11 +131,13 @@ tbody tr:hover { background: var(--gray); }
 .file-btn { margin: 8px 0; cursor: pointer; }
 
 /* ——— вход: голубой фон, белая карточка ——— */
-.login-wrap { min-height: 100vh; display: grid; place-items: center; background: var(--blue); }
+.login-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; background: var(--blue) url("/login-pattern.png") repeat; }
+.login-brand { display: flex; align-items: center; gap: 14px; font-family: var(--font-display); font-weight: 900; font-size: 2rem; text-transform: uppercase; color: var(--black); }
+.login-logo { width: 56px; height: 56px; display: block; }
 .login { display: flex; flex-direction: column; gap: 12px; width: 340px; border: 0; border-radius: 18px; box-shadow: 0 0 0 4px var(--black); }
 .login label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
-.btn-sso { text-align: center; text-decoration: none; background: var(--black); color: #fff; }
-.btn-sso:hover { background: var(--blue); color: var(--black); }
+.btn-sso { text-align: center; text-decoration: none; background: #fff; color: var(--black); border: 1.5px solid var(--black); }
+.btn-sso:hover { background: var(--black); color: #fff; }
 .login-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; }
 .login-or::before, .login-or::after { content: ""; flex: 1; border-top: 1px solid currentColor; opacity: .4; }
 
