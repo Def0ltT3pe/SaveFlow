@@ -1,5 +1,6 @@
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy.exc import OperationalError
 
 from app.api import api_router, metrics_router
 
@@ -12,6 +13,11 @@ app = FastAPI(
 )
 app.include_router(api_router)
 app.include_router(metrics_router)
+
+
+@app.exception_handler(OperationalError)
+def database_unavailable(request: Request, exc: OperationalError) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": "База данных недоступна. Запустите Postgres и обновите страницу."})
 
 
 @app.get("/", include_in_schema=False)

@@ -24,7 +24,7 @@ import {
 
 // ── Axios ───────────────────────────────────────────────
 // Сессия живёт в httpOnly-cookie; если бэкенд отдаёт токен — кладём его в localStorage('token').
-export const http = axios.create({ baseURL: '/api/v1', withCredentials: true });
+export const http = axios.create({ baseURL: '/api/v1', withCredentials: true, timeout: 20000 });
 
 http.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('token');
@@ -46,6 +46,10 @@ export function errorMessage(e: unknown): string {
     const d = e.response?.data as { detail?: unknown; message?: string } | undefined;
     if (typeof d?.detail === 'string') return d.detail;
     if (d?.message) return d.message;
+    if (e.code === 'ECONNABORTED') return 'Сервер не ответил вовремя';
+    const status = e.response?.status;
+    const emptyProxyError = status === 500 && !e.response?.data;
+    if (status === 502 || status === 504 || emptyProxyError) return 'Бэкенд не запущен или не отвечает';
     if (e.response) return `Ошибка сервера (${e.response.status})`;
     return 'Нет связи с сервером';
   }
@@ -132,9 +136,11 @@ export function useLive<T>(fetcher: () => Promise<T>, deps: unknown[] = [], inte
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
   const seq = useRef(0);
+  const inFlight = useRef(0);
 
   const reload = useCallback(async () => {
     const mine = ++seq.current;
+    inFlight.current += 1;
     try {
       const result = await fetcherRef.current();
       if (mine !== seq.current) return; // пришёл устаревший ответ
@@ -144,6 +150,7 @@ export function useLive<T>(fetcher: () => Promise<T>, deps: unknown[] = [], inte
     } catch (e) {
       if (mine === seq.current) setError(errorMessage(e));
     } finally {
+      inFlight.current -= 1;
       if (mine === seq.current) setLoading(false);
     }
   }, []);
@@ -151,7 +158,8 @@ export function useLive<T>(fetcher: () => Promise<T>, deps: unknown[] = [], inte
   useEffect(() => {
     setLoading(true);
     reload();
-    const tick = () => document.visibilityState === 'visible' && reload();
+    // таймер не обгоняет медленный ответ: пока запрос в пути, новый не отправляем
+    const tick = () => document.visibilityState === 'visible' && inFlight.current === 0 && reload();
     const timer = intervalMs > 0 ? window.setInterval(tick, intervalMs) : undefined;
     window.addEventListener(CHANGED, reload);
     document.addEventListener('visibilitychange', tick);
