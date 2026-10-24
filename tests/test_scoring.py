@@ -255,3 +255,48 @@ def test_account_level_reason_is_not_attached_to_a_service():
     assert history["serviceId"] is None and history["serviceName"] is None and history["services"] == 0
     expiring = next(x for x in r.reasons if x["feature"] == "expiring_no_autoprolong")
     assert expiring["serviceName"] == "s-1"
+
+
+# --- Оплата продления частью с баланса, частью бонусами --------------------------------
+
+
+@pytest.mark.parametrize("services,acc,secured,bonus,at_risk", [
+    ([service(price=1000, expires_in_days=5)], account(balance=300, bonus=2000, bonus_state="unlocked"), 300, 700, 0),
+    ([service(term="hour", price=10, expires_in_days=0.5 / 24)], account(balance=485, bonus=240, bonus_state="unlocked"),
+     485, 235, 7200 - 720),
+    ([service(price=1000, expires_in_days=5)], account(balance=300, bonus=500, bonus_state="unlocked"), 0, 0, 1000),
+    ([service(1, price=600, expires_in_days=5), service(2, price=400, expires_in_days=5)],
+     account(balance=500, bonus=1000, bonus_state="unlocked"), 500, 500, 0),
+])
+def test_renewal_paid_from_balance_remainder_and_bonus(services, acc, secured, bonus, at_risk):
+    r = score(services, acc)
+    assert (r.secured_by_balance, r.covered_by_bonus, r.at_risk) == (secured, bonus, at_risk)
+
+
+def test_balance_is_spent_before_bonus_for_every_demo_customer():
+    import collections
+    import json
+    from pathlib import Path
+
+    from app.risk.domain import AccountData, ServiceData, TxStats
+    from app.risk.schemas import SnapshotIn
+    from app.risk.scoring import score_portfolio
+
+    root = Path(__file__).resolve().parent.parent
+    for name in ("demo_day0.json", "demo_day3.json", "showcase.json"):
+        path = root / "demo" / name
+        if not path.exists():
+            continue
+        snap = SnapshotIn.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        accounts = [AccountData(a.id, a.email, a.balance, a.withdraw_balance, a.total_replenished, a.bonus_balance,
+                                a.bonus_state) for a in snap.accounts]
+        services = [ServiceData(s.id, s.name, s.owner_id, s.payment_term, s.auto_prolong, s.created_at, s.expires_at,
+                                s.status, s.price) for s in snap.services]
+        for r in score_portfolio(accounts, services, collections.defaultdict(TxStats), ModelSettings(),
+                                 snap.reference_date or snap.latest_timestamp()):
+            paid = r.secured_by_balance + r.covered_by_bonus
+            assert r.secured_by_balance == min(r.account.balance, paid), r.account.email   # баланс — первым и до конца
+            assert r.covered_by_bonus <= r.account.usable_bonus, r.account.email
+            for s in r.services:
+                if s.scored and s.service.price:
+                    assert (s.secured_by_balance + s.covered_by_bonus) % s.service.price == 0  # только целые продления

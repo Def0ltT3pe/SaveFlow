@@ -116,6 +116,33 @@ def level_for(score: float | None, settings: ModelSettings) -> str:
     return "low"
 
 
+def _split_payments(auto: list[ServiceData], first_due: dict[int, float], renewals: dict[int, int],
+                    balance: int, bonus: int, horizon: int) -> tuple[dict[int, int], dict[int, int]]:
+    """Сколько продлений каждой услуги автопродление оплатит с баланса и сколько бонусами.
+
+    Продление оплачивается только целиком из общей суммы баланса и бонусов. Внутри оплаченных баланс
+    тратится первым и до конца: продление, на котором он кончается, оплачивается остатком баланса
+    и добирается бонусами.
+    """
+    funds_end = runway_days(auto, first_due, balance + bonus, horizon)
+    balance_ends = runway_days(auto, first_due, balance, horizon)
+    paid = {s.id: _paid_before(funds_end, renewals[s.id], first_due[s.id], s) for s in auto}
+    secured = {s.id: s.price * min(paid[s.id], _paid_before(balance_ends, renewals[s.id], first_due[s.id], s))
+               for s in auto}
+    if balance_ends is not None:
+        # Продления ровно в момент, когда баланса уже не хватает целиком: забирают остаток баланса.
+        leftover = balance - sum(secured.values())
+        for s in sorted(auto, key=lambda s: s.id):
+            before = secured[s.id] // s.price if s.price else paid[s.id]
+            at_crossing = _renewals_by(balance_ends + 1e-7, first_due[s.id], PERIOD_DAYS[s.payment_term])
+            if leftover > 0 and paid[s.id] > before and at_crossing > before:
+                part = min(leftover, s.price)
+                secured[s.id] += part
+                leftover -= part
+    by_bonus = {s.id: s.price * paid[s.id] - secured[s.id] for s in auto}
+    return secured, by_bonus
+
+
 def _paid_before(money_ends: float | None, renewals: int, first_due: float, service: ServiceData) -> int:
     """Сколько продлений услуги успеют оплатить до момента, когда кончатся деньги (None — все)."""
     if money_ends is None:
@@ -191,11 +218,7 @@ def score_account(
     # почасовая услуга не «забирает» весь месяц вперёд у месячной, которую нужно продлить раньше.
     # Услуга в prolong_wait не покрыта даже при автопродлении: сам статус означает, что автосписание не прошло.
     auto = [s for s in live if s.auto_prolong and s.status != "prolong_wait"]
-    balance_ends = runway_days(auto, first_due, account.balance, horizon)
-    funds_end = runway_days(auto, first_due, account.balance + account.usable_bonus, horizon)
-    secured = {s.id: s.price * _paid_before(balance_ends, renewals[s.id], first_due[s.id], s) for s in auto}
-    by_bonus = {s.id: s.price * _paid_before(funds_end, renewals[s.id], first_due[s.id], s) - secured[s.id]
-                for s in auto}
+    secured, by_bonus = _split_payments(auto, first_due, renewals, account.balance, account.usable_bonus, horizon)
 
     scored: list[tuple[ServiceData, float, list[ContributionResult]]] = []
     for s in live:
