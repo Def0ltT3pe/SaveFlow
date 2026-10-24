@@ -18,6 +18,11 @@ class UserOut(BaseModel):
     username: str
 
 
+class OidcInfo(BaseModel):
+    enabled: bool
+    name: str | None = None
+
+
 class Versions(CamelModel):
     run_id: int | None
     settings_version: int

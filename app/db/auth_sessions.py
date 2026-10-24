@@ -4,11 +4,12 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, insert, select, update
 
-from app.db.models import AuthSession
+from app.db.models import AuthSession, OidcLoginRequest
 from app.db.session import session_factory, setting
 
 TOKEN_BYTES = 32
 MAX_TOKEN_LENGTH = 128
+LOGIN_REQUEST_TTL = timedelta(minutes=10)
 
 
 def session_ttl() -> timedelta:
@@ -65,3 +66,29 @@ def revoke(token, *, now: datetime | None = None) -> None:
                   .where(AuthSession.token_hash == token_hash, AuthSession.revoked_at.is_(None))
                   .values(revoked_at=now or datetime.now(timezone.utc)))
         s.commit()
+
+
+def save_login_request(state: str, nonce: str, code_verifier: str, *, now: datetime | None = None) -> None:
+    """Начатый вход через OIDC: по state при возврате от провайдера находятся nonce и code_verifier."""
+    now = now or datetime.now(timezone.utc)
+    with session_factory()() as s:
+        s.execute(delete(OidcLoginRequest).where(OidcLoginRequest.expires_at < now))
+        s.execute(insert(OidcLoginRequest).values(state_hash=_hash(state), nonce=nonce, code_verifier=code_verifier,
+                                                  created_at=now, expires_at=now + LOGIN_REQUEST_TTL))
+        s.commit()
+
+
+def take_login_request(state, *, now: datetime | None = None) -> tuple[str, str] | None:
+    """(nonce, code_verifier) начатого входа; запись удаляется сразу — повторный возврат с тем же state не пройдёт."""
+    state_hash = _hash(state)
+    if state_hash is None:
+        return None
+    now = now or datetime.now(timezone.utc)
+    with session_factory()() as s:
+        row = s.execute(delete(OidcLoginRequest).where(OidcLoginRequest.state_hash == state_hash)
+                        .returning(OidcLoginRequest.nonce, OidcLoginRequest.code_verifier,
+                                   OidcLoginRequest.expires_at)).first()
+        s.commit()
+    if row is None or row.expires_at <= now:
+        return None
+    return row.nonce, row.code_verifier

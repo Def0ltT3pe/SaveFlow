@@ -47,6 +47,180 @@
         }
       }
     },
+    "/api/v1/auth/oidc/config": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Config",
+        "description": "Включён ли вход через внешнего провайдера (OIDC) и как подписать кнопку.",
+        "operationId": "oidc_config_api_v1_auth_oidc_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/login": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Login",
+        "description": "Начало входа через OIDC: переход на страницу входа провайдера (Authorization Code + PKCE).",
+        "operationId": "oidc_login_api_v1_auth_oidc_login_get",
+        "parameters": [
+          {
+            "name": "prompt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "login",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "login — заново спросить пароль у провайдера, чтобы войти другим пользователем",
+              "title": "Prompt"
+            },
+            "description": "login — заново спросить пароль у провайдера, чтобы войти другим пользователем"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Callback",
+        "description": "Возврат от провайдера: проверка id_token и выдача обычной сессии SaveFlow.",
+        "operationId": "oidc_callback_api_v1_auth_oidc_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Description"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/logout": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Logout",
+        "description": "Выход и у провайдера: фронт переходит сюда после POST /auth/logout, если входили через OIDC.",
+        "operationId": "oidc_logout_api_v1_auth_oidc_logout_get",
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
     "/api/v1/auth/me": {
       "get": {
         "tags": [
@@ -1359,6 +1533,30 @@
         ],
         "title": "Money",
         "description": "Денежные показатели в евроцентах."
+      },
+      "OidcInfo": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "OidcInfo"
       },
       "Reason": {
         "properties": {

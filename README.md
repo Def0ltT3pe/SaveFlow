@@ -14,13 +14,14 @@ docker compose up --build
 
 | Что | Адрес |
 |---|---|
-| Панель | http://localhost:8080 — вход `admin` / `admin` |
+| Панель | http://localhost:8080 — вход `admin` / `admin` или «Войти через Keycloak»: `analyst` / `analyst` |
+| Keycloak (провайдер входа OIDC) | http://localhost:8180 — администратор `admin` / `admin` |
 | Swagger | http://localhost:8080/api/v1/docs |
 | OpenAPI | http://localhost:8080/api/v1/openapi.json (копия в [docs/openapi.json](docs/openapi.json)) |
 | Метрики Prometheus | http://localhost:8080/metrics — без авторизации |
 | Healthcheck | http://localhost:8080/healthz |
 
-Что поднимается: `db` (PostgreSQL 16), `backend` (FastAPI) и `frontend` (nginx: панель, прокси на `/api`, `/metrics`, `/healthz`). Наружу открыт только порт фронтенда. При старте бэкенд накатывает миграции и, если база пустая, загружает тестовый набор `data/data.json`.
+Что поднимается: `db` (PostgreSQL 16), `backend` (FastAPI), `frontend` (nginx: панель, прокси на `/api`, `/metrics`, `/healthz`) и `keycloak` (провайдер входа OIDC). Наружу открыты порт панели и порт Keycloak. При старте бэкенд накатывает миграции и, если база пустая, загружает тестовый набор `data/data.json`.
 
 Данные, настройки модели и сессии входа хранятся в томе `pgdata` и переживают перезапуск:
 
@@ -39,8 +40,39 @@ docker compose down -v   # остановить и удалить данные: 
 | `DEMO_USER`, `DEMO_PASSWORD` | `admin`, `admin` | логин и пароль входа — поменяйте перед показом |
 | `DB_PASSWORD` | `churn` | пароль PostgreSQL, только буквы и цифры |
 | `SEED_ON_START` | `1` | `0` — не загружать `data/data.json` в пустую базу |
+| `SESSION_TTL_HOURS` | `12` | сколько часов действует вход |
+| `KEYCLOAK_PORT` | `8180` | порт Keycloak на хосте |
+| `KEYCLOAK_ADMIN_PASSWORD` | `admin` | пароль администратора Keycloak |
 
 Если порт 8080 занят: `APP_PORT=8090 docker compose up --build` (в PowerShell — строка `APP_PORT=8090` в `.env`).
+
+## Вход через OIDC (SSO)
+
+На странице входа две возможности: кнопка «Войти через Keycloak» и, как запасной вариант, логин и пароль (`DEMO_USER` / `DEMO_PASSWORD`). Обе дают одинаковую сессию: она хранится в Postgres и переживает перезапуск бэкенда.
+
+В Docker Keycloak поднимается сам с готовым realm `saveflow` ([docker/keycloak/saveflow-realm.json](docker/keycloak/saveflow-realm.json)). Первый старт Keycloak занимает около минуты, панель работает и без него.
+
+| Пользователь Keycloak | Пароль | Результат |
+|---|---|---|
+| `analyst` | `analyst` | входит в панель: у него роль `analyst` |
+| `guest` | `guest` | Keycloak пускает, панель — нет: «У пользователя «guest» нет роли «analyst»». Сессия `guest` в Keycloak при этом закрывается, так что можно сразу войти другим пользователем |
+
+Как это работает: Authorization Code + PKCE. Кнопка ведёт на `GET /api/v1/auth/oidc/login`: бэкенд запоминает `state`, `nonce` и `code_verifier` (таблица `oidc_login_requests`, запись одноразовая и живёт 10 минут) и отправляет браузер в Keycloak. После входа Keycloak возвращает браузер на `/api/v1/auth/oidc/callback`. Бэкенд меняет код на `id_token` и проверяет подпись по ключам провайдера, издателя, получателя, срок действия, `nonce` и роль. Затем выдаёт обычную сессию SaveFlow и возвращает на панель; токен передаётся во фрагменте адреса (`#`), поэтому не попадает в логи. «Выйти» завершает сессию и у Keycloak, так что следующий вход снова спросит пароль.
+
+Подключить другой провайдер (Google, Microsoft Entra, GitLab, Authentik…) можно без правки кода, переменными бэкенда:
+
+| Переменная | Что это |
+|---|---|
+| `OIDC_ISSUER` | адрес провайдера, как в `iss` токенов. Не задан — вход через OIDC выключен, кнопки нет |
+| `OIDC_INTERNAL_ISSUER` | тот же провайдер, но адрес, по которому до него достаёт бэкенд (в Docker — `http://keycloak:8080/...`) |
+| `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | клиент, зарегистрированный у провайдера; секрет — только для конфиденциального клиента |
+| `OIDC_REDIRECT_URI` | адрес возврата: `http://<панель>/api/v1/auth/oidc/callback`, его же надо разрешить у провайдера |
+| `OIDC_POST_LOGOUT_REDIRECT_URI` | куда провайдер вернёт после выхода, обычно `http://<панель>/login` |
+| `OIDC_REQUIRED_ROLE`, `OIDC_ROLES_CLAIM` | роль для доступа к панели и claim, где лежат роли (по умолчанию `roles`; можно путь через точку, например `realm_access.roles`). Роль не задана — пускает любого вошедшего |
+| `OIDC_USERNAME_CLAIM` | чьё имя показывать (по умолчанию `preferred_username`, затем `email`, затем `sub`) |
+| `OIDC_NAME`, `OIDC_SCOPES` | подпись кнопки и запрашиваемые scope (по умолчанию `openid profile email`) |
+
+Без Docker: запустите Keycloak отдельно, импортируйте тот же realm и задайте в `.env` `OIDC_ISSUER=http://localhost:8180/realms/saveflow` и `OIDC_REDIRECT_URI=http://localhost:5173/api/v1/auth/oidc/callback` (адрес фронта в `npm run dev`).
 
 ## Ветки
 

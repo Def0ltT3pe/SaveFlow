@@ -4,3 +4,4 @@ pydantic==2.14.1
 sqlalchemy==2.0.55
 alembic==1.20.1
 psycopg[binary]==3.3.6
+PyJWT[crypto]==2.15.1

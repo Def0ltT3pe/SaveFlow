@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { getMe, logout } from './api/client';
+import { getMe, logout, takeSsoResult } from './api/client';
 import Layout from './components/Layout';
 import CustomerDetailPage from './pages/CustomerDetailPage';
 import CustomersPage from './pages/CustomersPage';
@@ -12,12 +12,16 @@ import type { User } from './types';
 export default function App() {
   // undefined — ещё проверяем сессию, null — не авторизован
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [ssoError, setSsoError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     getMe().then(setUser).catch(() => setUser(null));
   }, []);
 
   useEffect(() => {
+    // до проверки сессии: после входа через OIDC токен приходит в адресе страницы
+    const sso = takeSsoResult();
+    if (sso.error) setSsoError(sso.error);
     refresh();
     const onUnauthorized = () => setUser(null); // любой 401 из API выбрасывает на логин
     window.addEventListener('auth:unauthorized', onUnauthorized);
@@ -34,7 +38,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage onLogin={refresh} />} />
+        <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage onLogin={refresh} ssoError={ssoError} />} />
         {/* AuthGuard: всё остальное — только для авторизованных */}
         <Route element={user ? <Layout user={user} onLogout={onLogout} /> : <Navigate to="/login" replace />}>
           <Route index element={<DashboardPage />} />
