@@ -98,9 +98,11 @@ class FakeProvider:
 
 
 @pytest.fixture
-def provider(monkeypatch):
+def provider(monkeypatch, tmp_path):
     fake = FakeProvider()
     monkeypatch.setattr(oidc, "urlopen", fake.urlopen)
+    # Тесты «выключают» настройку пустой переменной; без этого значение взялось бы из локального .env разработчика
+    monkeypatch.setattr(dbs, "ENV_FILE", tmp_path / ".env")
     oidc._cache.clear()
     for name, value in {"OIDC_ISSUER": ISSUER, "OIDC_INTERNAL_ISSUER": INTERNAL, "OIDC_CLIENT_ID": CLIENT_ID,
                         "OIDC_REDIRECT_URI": REDIRECT_URI, "OIDC_REQUIRED_ROLE": "analyst", "OIDC_NAME": "Keycloak",
