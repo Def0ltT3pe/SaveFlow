@@ -58,7 +58,7 @@ def test_money_uses_balance_only_for_autoprolong():
     acc = account(balance=300)
     r = score([service(1, auto=True, price=500, expires_in_days=5), service(2, auto=False, price=200, expires_in_days=6)], acc)
     by_id = {s.service.id: s for s in r.services}
-    # Автопродление не оплачивает продление частично: €3 на балансе не покрывают продление за €5
+    # Автопродление не оплачивает продление частично: 3 € на балансе не покрывают продление за 5 €
     assert by_id[1].secured_by_balance == 0 and by_id[1].at_risk == 500
     assert by_id[2].secured_by_balance == 0 and by_id[2].at_risk == 200
     # Деньги — по вероятности ухода клиента, как в объяснении на панели
@@ -219,9 +219,22 @@ def test_hourly_service_running_out_has_meaningful_expected_loss():
 def test_funds_text_separates_balance_and_bonus():
     unlocked = score([service(price=5000, expires_in_days=2)], account(balance=200, bonus=3000, bonus_state="unlocked"))
     locked = score([service(price=5000, expires_in_days=2)], account(balance=200, bonus=3000, bonus_state="locked"))
-    assert "на балансе €2.00 и бонусах €30.00" in unlocked.reasons[0]["text"]
-    assert "на балансе €2.00 (бонусы €30.00 заблокированы)" in locked.reasons[0]["text"]
-    assert "€32.00" not in unlocked.reasons[0]["text"]
+    assert "на балансе 2,00\u00a0€ и бонусах 30,00\u00a0€" in unlocked.reasons[0]["text"]
+    assert "на балансе 2,00\u00a0€ (бонусы 30,00\u00a0€ заблокированы)" in locked.reasons[0]["text"]
+    assert "32,00" not in unlocked.reasons[0]["text"]
+
+
+@pytest.mark.parametrize("cents,text", [
+    (0, "0,00 €"),
+    (544_66, "544,66 €"),
+    (108_111, "1 081,11 €"),
+    (123_456_789, "1 234 567,89 €"),
+])
+def test_money_text_matches_panel_format(cents, text):
+    from app.risk.fmt import eur
+
+    # Как Intl.NumberFormat('ru-RU', EUR) на фронте; пробелы неразрывные
+    assert eur(cents) == text.replace(" ", "\u00a0")
 
 
 # --- Видимые противоречия на панели ---------------------------------------------------
@@ -271,6 +284,43 @@ def test_account_level_reason_is_not_attached_to_a_service():
 def test_renewal_paid_from_balance_remainder_and_bonus(services, acc, secured, bonus, at_risk):
     r = score(services, acc)
     assert (r.secured_by_balance, r.covered_by_bonus, r.at_risk) == (secured, bonus, at_risk)
+
+
+# --- Продления в один и тот же момент -------------------------------------------------
+
+
+SAME_MOMENT = 5.0
+LATER = SAME_MOMENT + 30 / 86400  # на 30 секунд позже
+
+
+@pytest.mark.parametrize("services,acc,paid", [
+    # денег на одно из двух: одно оплачено, а не оба под угрозой
+    ([service(1, price=500, expires_in_days=SAME_MOMENT), service(2, price=500, expires_in_days=SAME_MOMENT)],
+     account(balance=500), {1: (500, 0), 2: (0, 0)}),
+    # не хватает на первую по очереди — оплачивается та, на которую хватает
+    ([service(1, price=600, expires_in_days=SAME_MOMENT), service(2, price=400, expires_in_days=SAME_MOMENT)],
+     account(balance=400), {1: (0, 0), 2: (400, 0)}),
+    # оплата остатком баланса и бонусами
+    ([service(1, price=500, expires_in_days=SAME_MOMENT), service(2, price=500, expires_in_days=SAME_MOMENT)],
+     account(balance=300, bonus=300, bonus_state="unlocked"), {1: (300, 200), 2: (0, 0)}),
+    # две почасовые с одним сроком: 30 пар оплачены, на 31-й час денег на одну
+    ([service(1, term="hour", price=10, expires_in_days=0.5 / 24), service(2, term="hour", price=10, expires_in_days=0.5 / 24)],
+     account(balance=610), {1: (310, 0), 2: (300, 0)}),
+])
+def test_renewals_at_the_same_moment_are_paid_one_by_one(services, acc, paid):
+    r = score(services, acc)
+    assert {s.service.id: (s.secured_by_balance, s.covered_by_bonus) for s in r.services} == paid
+    assert r.at_risk == r.horizon_revenue - sum(a + b for a, b in paid.values())
+
+
+def test_same_moment_is_counted_like_a_few_seconds_apart():
+    same = score([service(1, expires_in_days=SAME_MOMENT), service(2, expires_in_days=SAME_MOMENT)], account(balance=500))
+    apart = score([service(1, expires_in_days=SAME_MOMENT), service(2, expires_in_days=LATER)], account(balance=500))
+    for r in (same, apart):
+        signal = {s.service.id: any(c.feature == "insufficient_funds" for c in s.contributions) for s in r.services}
+        # «Не хватает средств» — только у неоплаченной услуги
+        assert signal == {1: False, 2: True}
+    assert (same.secured_by_balance, same.at_risk, same.score) == (apart.secured_by_balance, apart.at_risk, apart.score)
 
 
 def test_balance_is_spent_before_bonus_for_every_demo_customer():

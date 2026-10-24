@@ -23,7 +23,7 @@ churn_revenue_at_risk_eur{horizon_days="30"} 888.4
 churn_horizon_revenue_eur{horizon_days="30"} 2006.6
 # HELP churn_covered_by_bonus_eur Horizon renewals that autoprolong pays with bonuses, EUR
 # TYPE churn_covered_by_bonus_eur gauge
-churn_covered_by_bonus_eur{horizon_days="30"} 37.09
+churn_covered_by_bonus_eur{horizon_days="30"} 21.94
 # HELP churn_monthly_revenue_eur Monthly recurring revenue of live services, EUR
 # TYPE churn_monthly_revenue_eur gauge
 churn_monthly_revenue_eur 1963.53
@@ -32,7 +32,7 @@ churn_monthly_revenue_eur 1963.53
 churn_expected_monthly_loss_eur 548.65
 # HELP churn_last_recalculation_timestamp_seconds Time of the last model recalculation
 # TYPE churn_last_recalculation_timestamp_seconds gauge
-churn_last_recalculation_timestamp_seconds 1792823064.876
+churn_last_recalculation_timestamp_seconds 1792847077.783
 # HELP churn_model_settings_version Version of model settings used in the last recalculation
 # TYPE churn_model_settings_version gauge
-churn_model_settings_version 101
+churn_model_settings_version 105
