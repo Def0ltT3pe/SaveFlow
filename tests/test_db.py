@@ -156,6 +156,28 @@ def test_patch_during_snapshot_upload_is_not_lost(engine, session, loaded, sourc
     assert run["settingsVersion"] == settings["version"]
 
 
+def test_patch_while_recalc_checks_versions_is_not_lost(engine, session, loaded, monkeypatch):
+    # Пересчёт уже сверил версии (всё актуально), но ещё держит блокировку. В этот момент другой
+    # запрос сохраняет настройки и не может взять блокировку — пересчитать должен тот, кто её держит.
+    original = store.settings_version
+    injected = []
+
+    def settings_version_with_concurrent_patch(s):
+        version = original(s)
+        if not injected:
+            injected.append(True)
+            with sessionmaker(bind=engine)() as other:
+                service.update_settings(other, {"weights": {"suspended": 55}})
+        return version
+
+    monkeypatch.setattr(store, "settings_version", settings_version_with_concurrent_patch)
+    service.recalculate(session)
+    assert injected
+    settings, run = _final_state(engine)
+    assert settings["settings"]["weights"]["suspended"] == 55
+    assert run["settingsVersion"] == settings["version"]
+
+
 @pytest.mark.parametrize("call", [
     lambda s: service.get_customers(s, limit=500),
     lambda s: service.get_customer(s, 5),
