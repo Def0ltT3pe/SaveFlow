@@ -97,6 +97,7 @@ class RiskRun(Base):
     computed_at: Mapped[datetime] = mapped_column("computedAt", DateTime(timezone=True))
     as_of: Mapped[datetime] = mapped_column("asOf", DateTime(timezone=True))
     settings_version: Mapped[int] = mapped_column("settingsVersion", Integer)
+    settings: Mapped[dict | None] = mapped_column(JSONB)
     snapshot_id: Mapped[int | None] = mapped_column("snapshotId", BigInteger, ForeignKey("snapshots.id"))
     reason: Mapped[str] = mapped_column(Text)
 
@@ -115,6 +116,7 @@ class ServiceRisk(Base):
     monthly_price: Mapped[Decimal] = mapped_column("monthlyPrice", Money)
     horizon_revenue: Mapped[Decimal] = mapped_column("horizonRevenue", Money)
     secured_by_balance: Mapped[Decimal] = mapped_column("securedByBalance", Money)
+    covered_by_bonus: Mapped[Decimal] = mapped_column("coveredByBonus", Money)
     at_risk: Mapped[Decimal] = mapped_column("atRisk", Money)
     expected_loss: Mapped[Decimal] = mapped_column("expectedLoss", Money)
     expected_monthly_loss: Mapped[Decimal] = mapped_column("expectedMonthlyLoss", Money)
@@ -131,6 +133,7 @@ class AccountRisk(Base):
     monthly_revenue: Mapped[Decimal] = mapped_column("monthlyRevenue", Money)
     horizon_revenue: Mapped[Decimal] = mapped_column("horizonRevenue", Money)
     secured_by_balance: Mapped[Decimal] = mapped_column("securedByBalance", Money)
+    covered_by_bonus: Mapped[Decimal] = mapped_column("coveredByBonus", Money)
     at_risk: Mapped[Decimal] = mapped_column("atRisk", Money)
     expected_loss: Mapped[Decimal] = mapped_column("expectedLoss", Money)
     expected_monthly_loss: Mapped[Decimal] = mapped_column("expectedMonthlyLoss", Money)

@@ -1,3 +1,4 @@
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -63,7 +64,16 @@ def masked_url(url: str | None = None) -> str:
 
 
 def _int(name: str, default: int) -> int:
-    return int(setting(name, str(default))[0])
+    value, source = setting(name, str(default))
+    try:
+        parsed = int(value)
+        if parsed > 0:
+            return parsed
+    except ValueError:
+        pass
+    # Опечатка вроде DB_CONNECT_TIMEOUT=5s не должна ронять каждый запрос: берём значение по умолчанию.
+    logging.getLogger(__name__).warning("%s=%r (%s) — не положительное целое, использую %s", name, value, source, default)
+    return default
 
 
 @lru_cache

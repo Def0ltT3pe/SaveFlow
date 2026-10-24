@@ -1,5 +1,5 @@
 from app.risk.context import ServiceContext
-from app.risk.fmt import duration, eur
+from app.risk.fmt import ago, eur, in_time
 from app.risk.registry import NO_SIGNAL, FeatureResult, feature
 from app.risk.terms import CHURNED_STATUSES
 
@@ -13,9 +13,10 @@ from app.risk.terms import CHURNED_STATUSES
 def prolong_wait(ctx: ServiceContext) -> FeatureResult:
     if ctx.service.status != "prolong_wait":
         return NO_SIGNAL
-    left = ctx.settings.prolong_wait_grace_days + ctx.days_to_expiry
+    # Срок в будущем при статусе prolong_wait — несогласованные данные: считаем, что он истёк сейчас.
+    left = ctx.settings.prolong_wait_grace_days + min(ctx.days_to_expiry, 0.0)
     if left > 0:
-        return FeatureResult(1.0, f"Ожидает оплаты: без неё будет удалена через {duration(left)}")
+        return FeatureResult(1.0, f"Ожидает оплаты: без неё будет удалена {in_time(left)}")
     return FeatureResult(1.0, "Ожидает оплаты дольше льготного периода: удаление в любой момент")
 
 
@@ -35,28 +36,44 @@ def expiring_no_autoprolong(ctx: ServiceContext) -> FeatureResult:
         return NO_SIGNAL
     return FeatureResult(
         1 - ctx.days_to_expiry / horizon,
-        f"Истекает через {duration(ctx.days_to_expiry)}, автопродление выключено",
+        f"Истекает {in_time(ctx.days_to_expiry)}, автопродление выключено",
     )
 
 
 @feature(
     "insufficient_funds",
     title="Не хватает средств на продление",
-    default_weight=25,
-    description="Основного и доступного бонусного баланса не хватит на продления в горизонте прогноза. "
-    "Средства распределяются по услугам в порядке ближайшего списания.",
+    default_weight=35,
+    description="Деньги на продления кончатся в пределах горизонта прогноза. Чем раньше наступит продление, "
+    "которое уже нечем оплатить, тем сильнее сигнал: от 1 (платить нужно сейчас) до 0.5 (в конце горизонта). "
+    "Учитываются основной баланс и доступные бонусы, продления оплачиваются по порядку наступления.",
 )
 def insufficient_funds(ctx: ServiceContext) -> FeatureResult:
-    if ctx.horizon_cost == 0:
+    if ctx.unfunded_in_days is None:
         return NO_SIGNAL
-    shortage = 1 - ctx.funded_share
-    if shortage <= 0:
-        return NO_SIGNAL
-    return FeatureResult(
-        shortage,
-        f"На балансе {eur(ctx.available_funds)}, а продления за {ctx.settings.horizon_days} дн. "
-        f"стоят {eur(ctx.account_horizon_cost)}",
-    )
+    horizon = ctx.settings.horizon_days
+    money = _funds_text(ctx)
+    next_due = 0.0 if ctx.service.status == "prolong_wait" else max(ctx.days_to_expiry, 0.0)
+    if ctx.unfunded_in_days == 0:
+        text = f"Денег не хватает на продление, которое нужно оплатить сейчас: {money}"
+    elif abs(ctx.unfunded_in_days - next_due) < 1e-6:
+        text = f"Денег не хватит на ближайшее продление {in_time(ctx.unfunded_in_days)}: {money}"
+    else:
+        text = f"Деньги на продления кончатся {in_time(ctx.runway_days)}: {money}"
+    # Нечем оплатить продление в горизонте — сильный сигнал при любом сроке, поэтому не ниже половины веса.
+    return FeatureResult(1 - 0.5 * ctx.unfunded_in_days / horizon,
+                         f"{text}, а продления за {horizon} дн. стоят {eur(ctx.account_horizon_cost)}")
+
+
+def _funds_text(ctx: ServiceContext) -> str:
+    """«на балансе €2.00 и бонусах €30.00» — без смешивания реальных денег и бонусов в одну цифру."""
+    a = ctx.account
+    text = f"на балансе {eur(a.balance)}"
+    if a.usable_bonus:
+        text += f" и бонусах {eur(a.usable_bonus)}"
+    elif a.bonus_balance:
+        text += f" (бонусы {eur(a.bonus_balance)} заблокированы)"
+    return text
 
 
 @feature(
@@ -110,4 +127,4 @@ def new_service(ctx: ServiceContext) -> FeatureResult:
     window = ctx.settings.new_service_days
     if ctx.age_days >= window:
         return NO_SIGNAL
-    return FeatureResult(1 - max(ctx.age_days, 0) / window, f"Подключена {duration(ctx.age_days)} назад")
+    return FeatureResult(1 - max(ctx.age_days, 0) / window, f"Подключена {ago(ctx.age_days)}")

@@ -222,6 +222,66 @@ def test_absurd_dates_are_rejected_on_input(session, loaded, source_data, field,
     assert service.get_churn_timeline(session)["points"]
 
 
+def test_broken_stored_settings_do_not_brick_api(session, loaded):
+    session.execute(text("UPDATE model_settings SET data = jsonb_set(data, '{horizonDays}', '0') WHERE id = 1"))
+    session.commit()
+    assert service.get_settings(session)["settings"]["horizonDays"] == 30
+    assert service.get_summary(session)["horizonDays"] == 30
+    out = service.update_settings(session, {"horizonDays": 14})  # починка через PATCH работает
+    assert out["settings"]["horizonDays"] == 14
+
+
+def test_failed_recalculation_reverts_patch(session, loaded, monkeypatch):
+    before = service.get_settings(session)
+    monkeypatch.setattr(store, "write_results", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("сбой пересчёта")))
+    with pytest.raises(RuntimeError):
+        service.update_settings(session, {"weights": {"suspended": 77}})
+    after = service.get_settings(session)
+    assert after["settings"]["weights"]["suspended"] == before["settings"]["weights"]["suspended"]
+    assert after["version"] > before["version"]  # откат — новая версия, клиенты видят изменение
+
+
+def test_summary_and_timeline_use_settings_of_latest_run(session, loaded):
+    current, _, _ = store.load_settings(session, for_update=True)
+    store.save_settings(session, current.model_copy(update={"horizon_days": 7}))  # сохранено, но ещё не пересчитано
+    session.commit()
+    summary = service.get_summary(session)
+    assert summary["horizonDays"] == 30 and "за 30 дн." in summary["explanation"]
+    forecast = [p for p in service.get_churn_timeline(session)["points"] if p["kind"] == "forecast"]
+    assert len(forecast) == 31
+
+
+def test_timeline_counts_each_deletion_once(session, loaded, source_data):
+    def snapshot(status, day):
+        data = copy.deepcopy(source_data)
+        data["referenceDate"] = f"2026-10-{day:02d}T12:00:00Z"
+        data["services"][0]["status"] = status
+        return data
+
+    for status, day in (("deleted", 19), ("active", 20), ("deleted", 21)):
+        service.replace_snapshot(session, snapshot(status, day))
+    points = service.get_churn_timeline(session, days_back=5)["points"]
+    sid = source_data["services"][0]["id"]
+    history = session.execute(text('SELECT count(*) FROM service_status_history WHERE "serviceId" = :s '
+                                   "AND \"newStatus\" = 'deleted'"), {"s": sid}).scalar_one()
+    assert history >= 2  # в истории два перехода в deleted
+    by_day = {p["date"]: p["deletions"] for p in points if p["kind"] == "fact"}
+    assert by_day.get("2026-10-21", 0) == 1 and by_day.get("2026-10-19", 0) == 0
+
+
+def test_summary_explanation_matches_calculation(session, loaded):
+    from app.risk.fmt import eur
+
+    summary = service.get_summary(session)
+    m = summary["money"]
+    customers = service.get_customers(session, limit=500)["items"]
+    by_formula = sum((c["score"] or 0) / 100 * c["money"]["atRisk"] for c in customers)
+    assert m["expectedLoss"] == pytest.approx(by_formula, abs=0.05 * len(customers))
+    assert m["horizonRevenue"] == pytest.approx(m["securedByBalance"] + m["coveredByBonus"] + m["atRisk"], abs=0.05)
+    for value in (m["expectedLoss"], m["horizonRevenue"], m["securedByBalance"], m["coveredByBonus"], m["atRisk"]):
+        assert eur(value) in summary["explanation"]
+
+
 def test_invalid_snapshot_is_rejected_before_db(session, loaded, source_data):
     data = copy.deepcopy(source_data)
     data["services"][0]["ownerId"] = 999

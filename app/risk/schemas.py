@@ -254,10 +254,11 @@ class Money(CamelModel):
 
     monthly_revenue: float = Field(description="Выручка в месяц с действующих услуг")
     horizon_revenue: float = Field(description="Сколько клиент должен заплатить за продления в горизонте")
-    secured_by_balance: float = Field(description="Часть horizon_revenue, которую автопродление спишет с баланса")
-    at_risk: float = Field(description="horizon_revenue − secured_by_balance")
-    expected_loss: float = Field(description="Σ вероятность ухода × at_risk")
-    expected_monthly_loss: float = Field(description="Σ вероятность ухода × месячная цена")
+    secured_by_balance: float = Field(description="Часть horizon_revenue, которую автопродление спишет с основного баланса")
+    covered_by_bonus: float = Field(0, description="Часть horizon_revenue, которую автопродление оплатит доступными бонусами")
+    at_risk: float = Field(description="horizon_revenue − secured_by_balance − covered_by_bonus")
+    expected_loss: float = Field(description="вероятность ухода клиента (score / 100) × at_risk")
+    expected_monthly_loss: float = Field(description="вероятность ухода клиента × месячная цена")
 
 
 class TxStatsOut(CamelModel):
@@ -284,6 +285,7 @@ class ServiceRiskOut(CamelModel):
     monthly_price: float
     horizon_revenue: float
     secured_by_balance: float
+    covered_by_bonus: float = 0
     at_risk: float
     expected_loss: float
     expected_monthly_loss: float

@@ -107,7 +107,7 @@ def _recalculate(session: Session, reason: str, snapshot_id: int | None = None) 
     as_of = store.resolve_as_of(session, settings)
     accounts, services, tx_stats = store.load_portfolio(session)
     store.write_results(session, score_portfolio(accounts, services, tx_stats, settings, as_of))
-    run = store.insert_run(session, as_of=as_of, settings_version=version,
+    run = store.insert_run(session, as_of=as_of, settings=settings, settings_version=version,
                            snapshot_id=snapshot_id or store.latest_snapshot_id(session), reason=reason)
     store.notify(session, {"event": reason, "runId": run.id, "settingsVersion": version,
                            "asOf": as_of.isoformat()})
@@ -249,12 +249,19 @@ def update_settings(session: Session, patch: ModelSettingsPatch | dict) -> dict:
     patch = patch if isinstance(patch, ModelSettingsPatch) else ModelSettingsPatch.model_validate(patch)
     try:
         current, _, _ = store.load_settings(session, for_update=True)
-        store.save_settings(session, patch.apply_to(current))
+        version, _ = store.save_settings(session, patch.apply_to(current))
         session.commit()
     except Exception:
         session.rollback()
         raise
-    _catch_up(session)
+    try:
+        _catch_up(session)
+    except Exception:
+        # Пересчёт не удался: возвращаем прежние настройки (если после нас их никто не менял),
+        # иначе панель показывала бы новые веса рядом с оценками по старым.
+        store.revert_settings(session, current, saved_version=version)
+        session.commit()
+        raise
     return _json(_settings_out(session))
 
 
@@ -263,10 +270,11 @@ def update_settings(session: Session, patch: ModelSettingsPatch | dict) -> dict:
 
 def _money(r: AccountRisk | None) -> Money:
     if r is None:
-        return Money(monthly_revenue=0, horizon_revenue=0, secured_by_balance=0, at_risk=0,
+        return Money(monthly_revenue=0, horizon_revenue=0, secured_by_balance=0, covered_by_bonus=0, at_risk=0,
                      expected_loss=0, expected_monthly_loss=0)
     return Money(monthly_revenue=_float(r.monthly_revenue), horizon_revenue=_float(r.horizon_revenue),
-                 secured_by_balance=_float(r.secured_by_balance), at_risk=_float(r.at_risk),
+                 secured_by_balance=_float(r.secured_by_balance), covered_by_bonus=_float(r.covered_by_bonus),
+                 at_risk=_float(r.at_risk),
                  expected_loss=_float(r.expected_loss), expected_monthly_loss=_float(r.expected_monthly_loss))
 
 
@@ -365,7 +373,8 @@ def get_customer(session: Session, customer_id: int | str) -> dict | None:
             days_to_expiry=_float(sr and sr.days_to_expiry),
             renewals_in_horizon=sr.renewals_in_horizon if sr else 0,
             monthly_price=_float(sr and sr.monthly_price), horizon_revenue=_float(sr and sr.horizon_revenue),
-            secured_by_balance=_float(sr and sr.secured_by_balance), at_risk=_float(sr and sr.at_risk),
+            secured_by_balance=_float(sr and sr.secured_by_balance),
+            covered_by_bonus=_float(sr and sr.covered_by_bonus), at_risk=_float(sr and sr.at_risk),
             expected_loss=_float(sr and sr.expected_loss),
             expected_monthly_loss=_float(sr and sr.expected_monthly_loss),
             contributions=sr.contributions if sr else [],
@@ -384,8 +393,8 @@ def get_customer(session: Session, customer_id: int | str) -> dict | None:
 
 
 def _summary(session: Session) -> RiskSummary:
-    settings, _, _ = store.load_settings(session)
     run = store.latest_run(session)
+    settings = store.run_settings(session, run)
     level = func.coalesce(AccountRisk.level, "none")
     high = level == "high"
     a = session.execute(
@@ -394,13 +403,14 @@ def _summary(session: Session) -> RiskSummary:
             *(func.count().filter(level == name) for name in LEVELS),
             func.avg(AccountRisk.score),
             func.sum(AccountRisk.monthly_revenue), func.sum(AccountRisk.horizon_revenue),
-            func.sum(AccountRisk.secured_by_balance), func.sum(AccountRisk.at_risk),
+            func.sum(AccountRisk.secured_by_balance), func.sum(AccountRisk.covered_by_bonus),
+            func.sum(AccountRisk.at_risk),
             func.sum(AccountRisk.expected_loss), func.sum(AccountRisk.expected_monthly_loss),
             func.sum(AccountRisk.at_risk).filter(high), func.sum(Account.balance).filter(high),
             func.sum(Account.withdraw_balance).filter(high),
         ).select_from(Account).outerjoin(AccountRisk, AccountRisk.account_id == Account.id)
     ).one()
-    (total, n_high, n_medium, n_low, n_none, avg_score, monthly, horizon, secured, at_risk,
+    (total, n_high, n_medium, n_low, n_none, avg_score, monthly, horizon, secured, by_bonus, at_risk,
      loss, monthly_loss, high_at_risk, high_balance, high_withdraw) = a
     s = session.execute(
         select(func.count(Service.id), func.count().filter(ServiceRisk.scored),
@@ -409,16 +419,16 @@ def _summary(session: Session) -> RiskSummary:
     ).one()
 
     money = Money(monthly_revenue=_float(monthly), horizon_revenue=_float(horizon),
-                  secured_by_balance=_float(secured), at_risk=_float(at_risk),
+                  secured_by_balance=_float(secured), covered_by_bonus=_float(by_bonus), at_risk=_float(at_risk),
                   expected_loss=_float(loss), expected_monthly_loss=_float(monthly_loss))
     h = settings.horizon_days
     explanation = (
-        f"Ожидаемая потеря за {h} дн.: {eur(money.expected_loss)}. Это сумма по всем действующим услугам: "
-        f"вероятность ухода клиента (score / 100) × деньги, которые клиент должен заплатить за продления "
-        f"в ближайшие {h} дн. и которые ещё не покрыты его балансом при включённом автопродлении. "
-        f"Всего за {h} дн. ожидается {eur(money.horizon_revenue)}, из них {eur(money.secured_by_balance)} "
-        f"уже лежит на балансах и спишется автоматически, под риском {eur(money.at_risk)}. "
-        f"Ежемесячная выручка {eur(money.monthly_revenue)}, ожидаемая потеря в месяц {eur(money.expected_monthly_loss)}."
+        f"Ожидаемая потеря за {h} дн.: {eur(money.expected_loss)}. По каждому клиенту: вероятность его ухода "
+        f"(score / 100) × сумма под угрозой — продления за ближайшие {h} дн., которые автопродление не спишет "
+        f"ни с баланса, ни с бонусов. Всего продлений на {eur(money.horizon_revenue)}: "
+        f"{eur(money.secured_by_balance)} спишется с балансов, {eur(money.covered_by_bonus)} оплатят бонусы, "
+        f"под угрозой {eur(money.at_risk)}. Ежемесячная выручка {eur(money.monthly_revenue)}, "
+        f"ожидаемая потеря в месяц {eur(money.expected_monthly_loss)}."
     )
     return RiskSummary(
         run=_run_out(run), horizon_days=h, accounts_total=total,
@@ -460,6 +470,8 @@ def render_metrics(session: Session) -> str:
            [(horizon, round(s.money.at_risk / 100, 2))])
     metric("churn_horizon_revenue_eur", "Revenue due over the forecast horizon, EUR",
            [(horizon, round(s.money.horizon_revenue / 100, 2))])
+    metric("churn_covered_by_bonus_eur", "Horizon renewals that autoprolong pays with bonuses, EUR",
+           [(horizon, round(s.money.covered_by_bonus / 100, 2))])
     metric("churn_monthly_revenue_eur", "Monthly recurring revenue of live services, EUR",
            [("", round(s.money.monthly_revenue / 100, 2))])
     metric("churn_expected_monthly_loss_eur", "Expected monthly recurring revenue loss, EUR",
@@ -484,8 +496,8 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
     списания добавляется её вероятность ухода.
     """
     days_back = min(max(_as_int(days_back, "days_back"), 0), MAX_DAYS_BACK)
-    settings, _, _ = store.load_settings(session)
     run = store.latest_run(session)
+    settings = store.run_settings(session, run)
     as_of = run.as_of if run else store.resolve_as_of(session, settings)
     start = as_of - timedelta(days=days_back)
     grace = timedelta(days=settings.prolong_wait_grace_days)
@@ -493,16 +505,22 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
     def day(ts: datetime) -> str:
         return ts.astimezone(timezone.utc).date().isoformat()
 
-    deletions: dict[str, int] = defaultdict(int)
-    transitioned: set[int] = set()
-    for sid, changed_at in session.execute(
-        select(ServiceStatusChange.service_id, ServiceStatusChange.changed_at).where(
-            ServiceStatusChange.new_status == "deleted",
-            ServiceStatusChange.old_status.is_not(None),
-        )
+    # Одна услуга — одно удаление: берётся последний переход в deleted. Если снимки загружали
+    # не по порядку (deleted → active → deleted), удаление не считается дважды; вернувшаяся услуга не считается.
+    deleted_at: dict[int, datetime | None] = {}
+    for sid, old_status, new_status, changed_at in session.execute(
+        select(ServiceStatusChange.service_id, ServiceStatusChange.old_status,
+               ServiceStatusChange.new_status, ServiceStatusChange.changed_at)
+        .order_by(ServiceStatusChange.snapshot_id, ServiceStatusChange.id)
     ):
-        transitioned.add(sid)
-        if start <= changed_at <= as_of:
+        if new_status == "deleted" and old_status is not None:
+            deleted_at[sid] = changed_at
+        elif new_status is not None and new_status != "deleted" and sid in deleted_at:
+            deleted_at[sid] = None
+    transitioned = set(deleted_at)
+    deletions: dict[str, int] = defaultdict(int)
+    for changed_at in deleted_at.values():
+        if changed_at is not None and start <= changed_at <= as_of:
             deletions[day(changed_at)] += 1
 
     estimated: dict[str, int] = defaultdict(int)

@@ -9,3 +9,13 @@ def duration(days: float) -> str:
     if days < 1:
         return f"{round(hours)} ч"
     return f"{round(days)} дн."
+
+
+def in_time(days: float) -> str:
+    """«менее чем через час», «через 5 ч», «через 3 дн.» — для «Истекает …», «будет удалена …»."""
+    return "менее чем через час" if days * 24 < 1 else f"через {duration(days)}"
+
+
+def ago(days: float) -> str:
+    """«менее часа назад», «5 ч назад», «3 дн. назад»."""
+    return f"{duration(days)} назад"
