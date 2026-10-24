@@ -350,3 +350,191 @@ def test_balance_is_spent_before_bonus_for_every_demo_customer():
             for s in r.services:
                 if s.scored and s.service.price:
                     assert (s.secured_by_balance + s.covered_by_bonus) % s.service.price == 0  # только целые продления
+
+
+# --- Признаки: значение, вес, текст --------------------------------------------------
+
+
+def contribution(result, feature):
+    return next((c for r in result.services for c in r.contributions if c.feature == feature), None)
+
+
+RICH = account(balance=1_000_000)  # денег хватает: «Не хватает средств» не мешает проверять признак
+
+
+@pytest.mark.parametrize("days", [-1.0, -0.01, 0.0])
+def test_expired_without_autoprolong_gives_full_signal(days):
+    c = contribution(score([service(auto=False, expires_in_days=days)], RICH), "expiring_no_autoprolong")
+    assert (c.value, c.weight, c.points) == (1.0, 30, 30)
+    assert c.text == "Срок истёк, автопродление выключено"
+
+
+def test_expiring_signal_only_without_autoprolong_and_for_active_or_suspended():
+    assert contribution(score([service(auto=True, expires_in_days=-1)], RICH), "expiring_no_autoprolong") is None
+    waiting = score([service(auto=False, status="prolong_wait", expires_in_days=-1)], RICH)
+    assert contribution(waiting, "expiring_no_autoprolong") is None  # это уже признак «Ожидает оплаты»
+    off = contribution(score([service(auto=False, status="suspended", expires_in_days=-1)], RICH), "expiring_no_autoprolong")
+    assert off.value == 1.0
+    assert contribution(score([service(auto=False, expires_in_days=31)], RICH), "expiring_no_autoprolong") is None
+
+
+def test_suspended_server_signal_and_weight():
+    r = score([service(status="suspended")], RICH)
+    c = contribution(r, "suspended")
+    assert (c.value, c.weight, c.points) == (1.0, 10, 10) and r.score == 10
+    assert c.text == "Сервер выключен пользователем: услугой не пользуются"
+    heavier = ModelSettingsPatch(weights={"suspended": 25}).apply_to(ModelSettings())
+    assert score([service(status="suspended")], RICH, settings=heavier).score == 25
+    assert contribution(score([service(status="active")], RICH), "suspended") is None
+
+
+@pytest.mark.parametrize("age,value", [(0, 1.0), (7.5, 0.75), (15, 0.5), (29.99, 0.0003), (30, None), (200, None)])
+def test_new_service_signal_fades_over_the_window(age, value):
+    c = contribution(score([service(age_days=age)], RICH), "new_service")
+    if value is None:
+        assert c is None
+    else:
+        assert c.value == pytest.approx(value, abs=1e-4) and c.points == pytest.approx(5 * value, abs=0.01)
+
+
+def test_new_service_weight_and_window_are_settings():
+    s = ModelSettingsPatch(weights={"new_service": 20}, new_service_days=60).apply_to(ModelSettings())
+    c = contribution(score([service(age_days=30)], RICH, settings=s), "new_service")
+    assert (c.value, c.points) == (0.5, 10)
+    assert c.text == "Подключена 30 дн. назад"
+
+
+# --- Границы уровней риска -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("value,level", [
+    (100, "high"), (60, "high"), (59.99, "medium"), (30, "medium"), (29.99, "low"), (0, "low"), (None, "none"),
+])
+def test_level_boundaries_are_inclusive(value, level):
+    from app.risk.scoring import level_for
+
+    assert level_for(value, ModelSettings()) == level
+
+
+@pytest.mark.parametrize("weight,level", [(60, "high"), (59.99, "medium"), (30, "medium"), (29.99, "low")])
+def test_customer_with_score_exactly_on_threshold(weight, level):
+    s = ModelSettingsPatch(weights={"suspended": weight}).apply_to(ModelSettings())
+    r = score([service(status="suspended")], RICH, settings=s)
+    assert (r.score, r.level) == (weight, level)
+
+
+# --- Цена в месяц и месячные потери ---------------------------------------------------
+
+
+@pytest.mark.parametrize("term,price,monthly", [
+    ("hour", 1, 730.5),            # 24 × 30.4375
+    ("week", 700, 3043.75),        # 700 × 30.4375 / 7
+    ("month", 500, 500),
+    ("quarter_year", 900, 300),
+    ("half_year", 600, 100),
+    ("year", 1200, 100),
+    ("month", 0, 0),
+])
+def test_monthly_price_for_every_payment_term(term, price, monthly):
+    from app.risk.terms import monthly_price
+
+    assert monthly_price(price, term) == pytest.approx(monthly)
+
+
+def test_monthly_revenue_and_loss_count_only_live_services():
+    services = [service(1, price=500, auto=False, expires_in_days=5), service(2, term="hour", price=1, status="suspended"),
+                service(3, price=99_999, status="deleted", expires_in_days=-10)]
+    r = score(services, RICH)
+    by_id = {s.service.id: s for s in r.services}
+    assert by_id[1].monthly_price == 500 and by_id[2].monthly_price == pytest.approx(730.5)
+    assert r.monthly_revenue == pytest.approx(1230.5)  # удалённая услуга в выручку не входит
+    assert by_id[3].expected_monthly_loss == 0
+    assert r.expected_monthly_loss == pytest.approx(r.score / 100 * 1230.5, abs=0.01)
+    assert r.expected_monthly_loss == pytest.approx(sum(s.expected_monthly_loss for s in r.services), abs=0.01)
+
+
+# --- Проверка входных данных ------------------------------------------------------------
+
+
+def snapshot(**changes) -> dict:
+    """Минимальный корректный снимок; changes заменяют поля услуги (service_*), транзакции (tx_*) и referenceDate."""
+    svc = {"id": 1, "name": "s-1", "ownerId": 1, "paymentTerm": "month", "createdAt": "2026-01-01T00:00:00Z",
+           "expiresAt": "2026-02-01T00:00:00Z", "status": "active", "price": 500}
+    tx = {"id": 1, "amount": 500, "status": "performed", "performedAt": "2026-01-01T00:05:00Z",
+          "createdAt": "2026-01-01T00:00:00Z", "type": "order", "serviceId": 1}
+    data = {"accounts": [{"id": 1, "email": "a@x.test"}], "services": [svc], "transactions": [tx]}
+    for key, value in changes.items():
+        target, field = key.split("_", 1) if "_" in key else ("snapshot", key)
+        {"service": svc, "tx": tx, "snapshot": data}[target][field] = value
+    return data
+
+
+def test_valid_snapshot_passes():
+    SnapshotIn.model_validate(snapshot())
+
+
+@pytest.mark.parametrize("changes", [
+    {"service_createdAt": "1969-12-31T23:59:59Z"},
+    {"service_expiresAt": "2200-01-01T00:00:01Z"},
+    {"service_expiresAt": "9999-12-31T00:00:00Z"},
+    {"service_createdAt": "2026-01-01T00:00:00"},                    # без часового пояса
+    {"service_expiresAt": "2025-12-31T23:59:59Z"},                   # истекает раньше, чем создана
+    {"service_expiresAt": "не дата"},
+    {"tx_createdAt": "0001-01-01T00:00:00Z"},
+    {"tx_performedAt": "2025-12-31T00:00:00Z"},                      # проведена раньше, чем создана
+    {"tx_performedAt": None},                                        # performed без даты проведения
+    {"tx_status": "not_performed"},                                  # not_performed с датой проведения
+    {"referenceDate": "2300-01-01T00:00:00Z"},
+])
+def test_snapshot_rejects_bad_dates(changes):
+    with pytest.raises(ValidationError):
+        SnapshotIn.model_validate(snapshot(**changes))
+
+
+@pytest.mark.parametrize("amount,ok", [(0, True), (1000, True), (-1, False), (1001, False), (1.5, False), ("abc", False),
+                                       (None, False)])
+def test_snapshot_amount_range(amount, ok):
+    # Как CHECK (amount BETWEEN 0 AND 1000) в схеме организаторов: ошибка до записи в БД, а не 500
+    if ok:
+        assert SnapshotIn.model_validate(snapshot(tx_amount=amount)).transactions[0].amount == amount
+    else:
+        with pytest.raises(ValidationError):
+            SnapshotIn.model_validate(snapshot(tx_amount=amount))
+
+
+@pytest.mark.parametrize("field,value", [("price", -1), ("price", 2**63), ("price", 1.5)])
+def test_snapshot_rejects_bad_prices(field, value):
+    with pytest.raises(ValidationError):
+        SnapshotIn.model_validate(snapshot(**{f"service_{field}": value}))
+
+
+@pytest.mark.parametrize("patch", [
+    {"weights": {"suspended": -1}},
+    {"weights": {"suspended": 100.01}},
+    {"weights": {"suspended": float("nan")}},
+    {"weights": {"suspended": float("inf")}},
+    {"weights": {"suspended": "много"}},
+    {"thresholds": {"high": 101}},
+    {"thresholds": {"medium": -1}},
+    {"thresholds": {"medium": 60}},                                  # равен high
+    {"thresholds": {"high": 25}},                                    # ниже medium
+    {"horizonDays": 0},
+    {"horizonDays": 366},
+    {"newServiceDays": 0},
+    {"prolongWaitGraceDays": 61},
+])
+def test_settings_reject_out_of_range_values(patch):
+    with pytest.raises(ValidationError):
+        ModelSettingsPatch.model_validate(patch).apply_to(ModelSettings())
+
+
+@pytest.mark.parametrize("patch,check", [
+    ({"weights": {"suspended": 0}}, lambda s: s.weights["suspended"] == 0),
+    ({"weights": {"suspended": 100}}, lambda s: s.weights["suspended"] == 100),
+    ({"thresholds": {"high": 100, "medium": 0}}, lambda s: (s.thresholds.high, s.thresholds.medium) == (100, 0)),
+    ({"thresholds": {"medium": 59.99}}, lambda s: s.thresholds.medium == 59.99),
+    ({"horizonDays": 1}, lambda s: s.horizon_days == 1),
+    ({"horizonDays": 365}, lambda s: s.horizon_days == 365),
+])
+def test_settings_accept_values_on_the_bounds(patch, check):
+    assert check(ModelSettingsPatch.model_validate(patch).apply_to(ModelSettings()))
