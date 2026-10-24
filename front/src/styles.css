@@ -40,9 +40,8 @@ a { color: var(--accent-ink); } p { margin: .4rem 0; }
   background: linear-gradient(90deg, var(--black) 0 4px, transparent 4px 8px, var(--black) 8px 12px, transparent 12px 16px, var(--black) 16px 20px); }
 .sidebar :focus-visible { outline-color: var(--black); }
 .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 900; font-size: 1.15rem; text-transform: uppercase; }
-/* знак «é» — клавиша с охранным полем, чёрная заливка, скругление */
-.brand-mark { width: 32px; height: 32px; flex: none; background: var(--black); border-radius: 9px; transform: none; display: grid; place-items: center; color: #fff; font: 700 1.35rem/1 var(--font-ui); }
-.brand-mark::after { content: "é"; margin-top: -2px; }
+/* логотип: щит на голубой панели */
+.brand-logo { width: 38px; height: 38px; flex: none; display: block; }
 .sidebar nav { display: flex; flex-direction: column; gap: 6px; }
 .nav { color: var(--black); font-family: var(--font-display); font-weight: 700; text-decoration: none; padding: 10px 14px; border-radius: 10px; }
 .nav:hover { background: rgba(255,255,255,.45); }
