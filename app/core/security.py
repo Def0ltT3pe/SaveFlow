@@ -20,12 +20,13 @@ def _unauthorized() -> HTTPException:
     )
 
 
-def issue_token(username: str) -> str:
-    return auth_sessions.issue(username)
+def issue_token(username: str, id_token: str | None = None) -> str:
+    return auth_sessions.issue(username, id_token=id_token)
 
 
-def revoke_token(token: str) -> None:
-    auth_sessions.revoke(token)
+def revoke_token(token: str) -> str | None:
+    """Завершает сессию; возвращает id_token провайдера, если вход был через OIDC."""
+    return auth_sessions.revoke(token)
 
 
 def get_current_token(

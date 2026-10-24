@@ -194,6 +194,19 @@ export const resetToDefaultsPatch = (s: ModelSettings): ModelSettingsPatch => ({
   thresholds: { ...s.defaultThresholds },
 });
 
+/** Тело PATCH с текущими значениями всех ползунков: по нему сброс можно отменить. */
+export const currentValuesPatch = (s: ModelSettings): ModelSettingsPatch => ({
+  coefficients: Object.fromEntries(s.coefficients.map((c) => [c.key, c.value])),
+  thresholds: { ...s.thresholds },
+});
+
+/** Настройки с ползунками, переставленными по patch, — чтобы показать их, не дожидаясь ответа бэкенда. */
+export const withValues = (s: ModelSettings, p: ModelSettingsPatch): ModelSettings => ({
+  ...s,
+  coefficients: s.coefficients.map((c) => ({ ...c, value: p.coefficients?.[c.key] ?? c.value })),
+  thresholds: { ...s.thresholds, ...p.thresholds },
+});
+
 /** Стоят ли все ползунки на значениях по умолчанию. */
 export const isAtDefaults = (s: ModelSettings): boolean =>
   s.coefficients.every((c) => c.value === c.defaultValue) &&

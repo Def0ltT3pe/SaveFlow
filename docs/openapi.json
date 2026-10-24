@@ -212,13 +212,38 @@
           "auth"
         ],
         "summary": "Oidc Logout",
-        "description": "Выход и у провайдера: фронт переходит сюда после POST /auth/logout, если входили через OIDC.",
+        "description": "Выход у провайдера без сессии панели (провайдер спросит «Выйти?»). Панель выходит через POST.",
         "operationId": "oidc_logout_api_v1_auth_oidc_logout_get",
         "responses": {
           "302": {
             "description": "Successful Response"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Session Logout",
+        "description": "Выход из сессии, открытой через OIDC, и у провайдера: фронт переходит по адресу из ответа.\n\nС id_token сессии провайдер не спрашивает «Выйти?» и сразу возвращает на свою форму входа.",
+        "operationId": "oidc_session_logout_api_v1_auth_oidc_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcLogout"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/auth/me": {
@@ -1561,6 +1586,20 @@
           "enabled"
         ],
         "title": "OidcInfo"
+      },
+      "OidcLogout": {
+        "properties": {
+          "redirect": {
+            "type": "string",
+            "title": "Redirect",
+            "description": "Куда перейти браузеру: выход у провайдера или страница входа панели"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redirect"
+        ],
+        "title": "OidcLogout"
       },
       "Reason": {
         "properties": {

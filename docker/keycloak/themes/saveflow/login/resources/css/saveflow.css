@@ -25,15 +25,13 @@ html, body { margin: 0; min-height: 100%; }
 
 .sf-card { display: flex; flex-direction: column; gap: 12px; width: 340px; max-width: 100%; background: #fff; border-radius: 18px; padding: 18px 20px; box-shadow: 0 0 0 4px var(--black); }
 .sf-card-head { position: relative; }
-#kc-page-title { font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin: 0; line-height: 1.1; color: var(--black); }
+#kc-page-title { font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; text-transform: uppercase; margin: 0; padding-right: 76px; line-height: 1.1; color: var(--black); }
 
-/* Язык: маленькая кнопка в углу карточки */
-#kc-locale { position: absolute; top: 0; right: 0; }
-#kc-current-locale-link { background: none; border: 1.5px solid var(--black); border-radius: 8px; padding: 2px 8px; font: 600 .75rem var(--font-ui); cursor: pointer; }
-#language-switch1 { display: none; position: absolute; right: 0; margin: 4px 0 0; padding: 4px 0; list-style: none; background: #fff; border: 1.5px solid var(--black); border-radius: 8px; z-index: 2; }
-#kc-current-locale-link[aria-expanded="true"] + #language-switch1 { display: block; }
-#language-switch1 a { display: block; padding: 4px 12px; color: var(--black); text-decoration: none; font-size: .85rem; }
-#language-switch1 a:hover { background: var(--gray); }
+/* Язык: RU | EN в углу карточки, текущий залит чёрным, другой — ссылка в одно нажатие */
+#kc-locale { position: absolute; top: 0; right: 0; display: flex; border: 1.5px solid var(--black); border-radius: 8px; overflow: hidden; }
+.sf-lang-item { padding: 2px 8px; font: 600 .75rem var(--font-ui); line-height: 1.5; color: var(--black); text-decoration: none; }
+.sf-lang-current { background: var(--black); color: #fff; }
+a.sf-lang-item:hover { background: var(--blue); }
 
 #kc-content, #kc-form, #kc-form-wrapper, #kc-form-login { display: flex; flex-direction: column; gap: 12px; }
 #kc-form-login > div { display: flex; flex-direction: column; gap: 4px; }
@@ -51,9 +49,12 @@ html, body { margin: 0; min-height: 100%; }
   width: 100%; border: 0; border-radius: 10px; padding: 10px 18px; cursor: pointer; text-align: center; text-decoration: none;
   font: 600 .95rem var(--font-ui); background: var(--black); color: #fff; transition: background .15s, color .15s; display: block;
 }
-#kc-login:hover { background: var(--blue); color: var(--black); }
+#kc-login:hover, #kc-logout:hover { background: var(--blue); color: var(--black); }
+#kc-logout:disabled { opacity: .6; cursor: default; }
 .sf-btn-ghost { background: var(--blue); color: var(--black); }
 .sf-btn-ghost:hover { background: var(--black); color: #fff; }
+
+.sf-text { margin: 0; font-size: 1rem; }
 
 .sf-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; }
 .sf-or::before, .sf-or::after { content: ""; flex: 1; border-top: 1px solid currentColor; opacity: .4; }

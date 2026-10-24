@@ -14,7 +14,7 @@ PROTECTED = [
     ("GET", "/api/v1/customers"), ("GET", "/api/v1/customers/1"), ("GET", "/api/v1/analytics/summary"),
     ("GET", "/api/v1/analytics/churn-timeline"), ("GET", "/api/v1/model/settings"),
     ("PATCH", "/api/v1/model/settings"), ("PUT", "/api/v1/source/snapshot"), ("GET", "/api/v1/events/version"),
-    ("GET", "/api/v1/auth/me"), ("POST", "/api/v1/auth/logout"),
+    ("GET", "/api/v1/auth/me"), ("POST", "/api/v1/auth/logout"), ("POST", "/api/v1/auth/oidc/logout"),
 ]
 
 

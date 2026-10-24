@@ -2,15 +2,17 @@ import secrets
 from typing import Literal
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
 
 from app.core import oidc
-from app.core.security import issue_token
+from app.core.security import get_current_token, issue_token, revoke_token
 from app.db.auth_sessions import LOGIN_REQUEST_TTL
-from app.schemas import OidcInfo
+from app.schemas import OidcInfo, OidcLogout
 
 router = APIRouter(prefix="/auth/oidc", tags=["auth"])
+# Выход по токену сессии: подключается вместе с защищёнными роутерами
+session_router = APIRouter(prefix="/auth/oidc", tags=["auth"])
 
 STATE_COOKIE = "saveflow_oidc_state"
 COOKIE_PATH = "/api/v1/auth/oidc"
@@ -66,7 +68,7 @@ def oidc_callback(request: Request, code: str | None = None, state: str | None =
             raise oidc.OidcError(f"Провайдер не выполнил вход: {error_description or error}")
         if not code or not state or not secrets.compare_digest(cookie.encode(), state.encode()):
             raise oidc.OidcError("Вход начат в другом окне или устарел. Начните вход заново.")
-        username = oidc.finish_login(cfg, code, state)
+        username, id_token = oidc.finish_login(cfg, code, state)
     except oidc.OidcAccessDenied as e:
         # Провайдер помнит этого пользователя и при следующем входе молча вернёт его же: завершаем там его сессию
         url = None
@@ -82,12 +84,29 @@ def oidc_callback(request: Request, code: str | None = None, state: str | None =
         return response
     except oidc.OidcError as e:
         return _to_panel(sso_error=str(e))
-    return _to_panel(sso_token=issue_token(username))
+    return _to_panel(sso_token=issue_token(username, id_token))
+
+
+@session_router.post("/logout", response_model=OidcLogout)
+def oidc_session_logout(token: str = Depends(get_current_token)) -> OidcLogout:
+    """Выход из сессии, открытой через OIDC, и у провайдера: фронт переходит по адресу из ответа.
+
+    С id_token сессии провайдер не спрашивает «Выйти?» и сразу возвращает на свою форму входа.
+    """
+    id_token = revoke_token(token)
+    cfg = oidc.config()
+    if cfg is None:
+        return OidcLogout(redirect=PANEL_LOGIN)
+    try:
+        url = oidc.logout_url(cfg, id_token_hint=oidc.logout_hint(cfg, id_token), back=oidc.relogin_uri(cfg))
+    except oidc.OidcError:
+        url = None
+    return OidcLogout(redirect=url or PANEL_LOGIN)
 
 
 @router.get("/logout", status_code=status.HTTP_302_FOUND, response_class=RedirectResponse)
 def oidc_logout() -> RedirectResponse:
-    """Выход и у провайдера: фронт переходит сюда после POST /auth/logout, если входили через OIDC."""
+    """Выход у провайдера без сессии панели (провайдер спросит «Выйти?»). Панель выходит через POST."""
     cfg = _require()
     try:
         url = oidc.logout_url(cfg)

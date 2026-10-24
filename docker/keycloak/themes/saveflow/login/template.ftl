@@ -28,7 +28,6 @@
             }
         }
     </script>
-    <script src="${url.resourcesPath}/js/menu-button-links.js" type="module"></script>
     <#if scripts??>
         <#list scripts as script>
             <script src="${script}" type="text/javascript"></script>
@@ -52,22 +51,16 @@
     <div class="sf-card">
         <header class="sf-card-head">
             <#if realm.internationalizationEnabled  && locale.supported?size gt 1>
-                <div id="kc-locale">
-                    <div id="kc-locale-wrapper">
-                        <div id="kc-locale-dropdown" class="menu-button-links">
-                            <button tabindex="1" id="kc-current-locale-link" aria-label="${msg("languages")}" aria-haspopup="true" aria-expanded="false" aria-controls="language-switch1">${locale.current}</button>
-                            <ul role="menu" tabindex="-1" aria-labelledby="kc-current-locale-link" aria-activedescendant="" id="language-switch1">
-                                <#assign i = 1>
-                                <#list locale.supported as l>
-                                    <li role="none">
-                                        <a role="menuitem" id="language-${i}" href="${l.url}">${l.label}</a>
-                                    </li>
-                                    <#assign i++>
-                                </#list>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+                <#-- Переключатель в одно нажатие. Коды вместо названий: Keycloak пишет названия на языке страницы («английский») -->
+                <nav id="kc-locale" class="sf-lang" aria-label="${msg("languages")}">
+                    <#list locale.supported as l>
+                        <#if l.languageTag == locale.currentLanguageTag>
+                            <span class="sf-lang-item sf-lang-current" aria-current="true" title="${l.label}">${l.languageTag?upper_case}</span>
+                        <#else>
+                            <a class="sf-lang-item" href="${l.url}" lang="${l.languageTag}" title="${l.label}">${l.languageTag?upper_case}</a>
+                        </#if>
+                    </#list>
+                </nav>
             </#if>
         <#if !(auth?has_content && auth.showUsername() && !auth.showResetCredentials())>
             <h1 id="kc-page-title"><#nested "header"></h1>

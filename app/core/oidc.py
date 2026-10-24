@@ -163,8 +163,8 @@ def start_login(cfg: OidcConfig, prompt: str | None = None) -> tuple[str, str]:
     return f"{endpoint}{'&' if '?' in endpoint else '?'}{urlencode(params)}", state
 
 
-def finish_login(cfg: OidcConfig, code: str, state: str) -> str:
-    """Обмен кода на id_token и его проверка; возвращает имя пользователя для сессии SaveFlow."""
+def finish_login(cfg: OidcConfig, code: str, state: str) -> tuple[str, str]:
+    """Обмен кода на id_token и его проверка; возвращает имя пользователя для сессии SaveFlow и id_token для выхода."""
     request = auth_sessions.take_login_request(state)
     if request is None:
         raise OidcError("Вход устарел или уже завершён. Начните вход заново.")
@@ -183,12 +183,13 @@ def finish_login(cfg: OidcConfig, code: str, state: str) -> str:
     if cfg.required_role and cfg.required_role not in _roles(claims, cfg.roles_claim):
         raise OidcAccessDenied(f"У пользователя «{username}» нет роли «{cfg.required_role}» для доступа к панели. "
                                f"Войдите другим пользователем.", id_token)
-    return username
+    return username, id_token
 
 
-def _signing_key(cfg: OidcConfig, meta: dict, kid: str | None):
+def _signing_key(cfg: OidcConfig, meta: dict, kid: str | None, *, fresh: bool = False):
     url = _backend_url(cfg, meta["jwks_uri"])
-    for refresh in (False, True):  # провайдер мог сменить ключи: перечитываем один раз
+    # провайдер мог сменить ключи: перечитываем один раз; fresh — сразу текущие, без кэша
+    for refresh in (True,) if fresh else (False, True):
         for jwk in _cached(url, refresh=refresh).get("keys", []):
             if not isinstance(jwk, dict) or jwk.get("use", "sig") != "sig" or (kid and jwk.get("kid") != kid):
                 continue
@@ -239,10 +240,39 @@ def _roles(claims: dict, path: str) -> set[str]:
     return {str(v) for v in value} if isinstance(value, list) else set()
 
 
-def logout_url(cfg: OidcConfig, id_token_hint: str | None = None, error: str | None = None) -> str | None:
+def relogin_uri(cfg: OidcConfig) -> str | None:
+    """Начало входа через OIDC на этом же бэкенде (рядом с callback). Туда провайдер возвращает после выхода
+    из панели: пользователь сразу видит форму входа провайдера, как при входе."""
+    base, found, rest = cfg.redirect_uri.rpartition("/callback")
+    return f"{base}/login" if found and not rest else cfg.post_logout_redirect_uri
+
+
+def logout_hint(cfg: OidcConfig, id_token: str | None) -> str | None:
+    """id_token сессии, если провайдер его примет как id_token_hint, иначе None (тогда он спросит «Выйти?»).
+
+    Срок не проверяем: id_token живёт минуты, а сессия панели — часы, и провайдер принимает просроченный.
+    Подпись проверяем: после перезапуска провайдер мог сменить ключи и на чужой токен показал бы страницу ошибки.
+    """
+    if not id_token:
+        return None
+    try:
+        header = jwt.get_unverified_header(id_token)
+        if header.get("alg") not in ALLOWED_ALGORITHMS:
+            return None
+        key = _signing_key(cfg, metadata(cfg), header.get("kid"), fresh=True)
+        claims = jwt.decode(id_token, key, algorithms=[header["alg"]], audience=cfg.client_id,
+                            options={"verify_exp": False, "verify_iat": False, "verify_iss": False})
+    except (OidcError, jwt.PyJWTError):
+        return None
+    return id_token if claims.get("iss") == cfg.issuer else None
+
+
+def logout_url(cfg: OidcConfig, id_token_hint: str | None = None, error: str | None = None,
+               back: str | None = None) -> str | None:
     """Выход у провайдера, чтобы следующий вход через него снова спросил пароль; None — провайдер не умеет.
 
     С id_token_hint провайдер выходит без вопроса «Вы точно хотите выйти?»; error вернётся на панель в ?sso_error=.
+    back — куда провайдеру вернуть после выхода; по умолчанию OIDC_POST_LOGOUT_REDIRECT_URI (страница входа панели).
     """
     endpoint = metadata(cfg).get("end_session_endpoint")
     if not isinstance(endpoint, str):
@@ -250,8 +280,8 @@ def logout_url(cfg: OidcConfig, id_token_hint: str | None = None, error: str | N
     params = {"client_id": cfg.client_id}
     if id_token_hint:
         params["id_token_hint"] = id_token_hint
-    if cfg.post_logout_redirect_uri:
-        back = cfg.post_logout_redirect_uri
+    back = back or cfg.post_logout_redirect_uri
+    if back:
         if error:
             back += ("&" if "?" in back else "?") + urlencode({"sso_error": error})
         params["post_logout_redirect_uri"] = back

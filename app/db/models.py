@@ -65,6 +65,7 @@ class AuthSession(Base):
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column("revokedAt", DateTime(timezone=True))
+    id_token: Mapped[str | None] = mapped_column("idToken", Text)
 
 
 class OidcLoginRequest(Base):

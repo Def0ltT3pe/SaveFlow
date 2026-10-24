@@ -70,14 +70,20 @@ export const getMe = async (): Promise<User> => {
 };
 export const logout = async () => {
   const viaSso = localStorage.getItem('auth_via') === 'sso';
+  let next: string | null = null;
   try {
-    await http.post('/auth/logout');
+    // Через OIDC выходим и у провайдера, иначе следующий вход через него пройдёт без пароля.
+    // Бэкенд отдаёт адрес выхода с id_token: провайдер не переспрашивает и сразу показывает свою форму входа.
+    if (viaSso) next = (await http.post<{ redirect: string }>('/auth/oidc/logout')).data.redirect;
+    else await http.post('/auth/logout');
+  } catch (e) {
+    if (!viaSso) throw e;
+    next = '/api/v1/auth/oidc/logout'; // сессия панели уже истекла: выход у провайдера, но с его вопросом «Выйти?»
   } finally {
     localStorage.removeItem('token');
     localStorage.removeItem('auth_via');
   }
-  // иначе следующий вход через провайдера пройдёт без пароля
-  if (viaSso) window.location.assign('/api/v1/auth/oidc/logout');
+  if (next) window.location.assign(next);
 };
 
 /** Вход через OIDC: включён ли он на бэкенде и как подписать кнопку. */

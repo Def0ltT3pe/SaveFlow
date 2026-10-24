@@ -68,6 +68,12 @@ a { color: var(--accent-ink); } p { margin: .4rem 0; }
 .btn:disabled, .btn:disabled:hover { opacity: .45; cursor: default; background: transparent; color: var(--black); }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: .6rem; }
 .panel-head h2 { margin: 0; }
+/* «Отменить» после сброса настроек; полоска внизу показывает, сколько ещё можно отменить */
+.undo-bar { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; padding: 5px 6px 7px 14px; border-radius: 10px; background: var(--low-bg); color: var(--navy); font-weight: 600; font-size: .9rem; }
+.undo-bar .btn-ghost { background: #fff; }
+.undo-bar .btn-ghost:hover { background: var(--black); color: #fff; }
+.undo-timer { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--blue); transform-origin: left; animation: undo-countdown linear forwards; }
+@keyframes undo-countdown { to { transform: scaleX(0); } }
 input[type=search], input[type=text], input[type=password], input[type=number] { font: inherit; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); }
 input:focus { border-color: var(--black); }
 

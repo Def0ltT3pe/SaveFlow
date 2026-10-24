@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { isAtDefaults, resetToDefaultsPatch } from '../api/backend';
+import { currentValuesPatch, isAtDefaults, resetToDefaultsPatch, withValues } from '../api/backend';
 import { emitChanged, errorMessage, getSettings, patchSettings, putSnapshot } from '../api/client';
 import type { ModelSettings, ModelSettingsPatch, SourceSnapshot } from '../types';
 
 type Save = 'idle' | 'saving' | 'saved' | 'error';
+
+// Сброс применяется сразу, без окна подтверждения: вместо него — «Отменить» на это время
+const UNDO_MS = 10_000;
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<ModelSettings | null>(null);
@@ -11,12 +14,17 @@ export default function SettingsPage() {
   const [save, setSave] = useState<Save>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [snap, setSnap] = useState<{ kind: 'ok' | 'err' | 'busy'; text: string } | null>(null);
+  const [undo, setUndo] = useState<ModelSettingsPatch | null>(null);
   const timer = useRef<number>();
+  const undoTimer = useRef<number>();
   const pending = useRef<ModelSettingsPatch>({});
 
   useEffect(() => {
     getSettings().then(setSettings).catch((e) => setLoadError(errorMessage(e)));
-    return () => window.clearTimeout(timer.current);
+    return () => {
+      window.clearTimeout(timer.current);
+      window.clearTimeout(undoTimer.current);
+    };
   }, []);
 
   // Слайдер двигается сразу, на бэкенд изменения уходят пачкой через 400 мс — модель пересчитывается без reload.
@@ -45,24 +53,39 @@ export default function SettingsPage() {
     }, 400);
   };
 
+  const offerUndo = (previous: ModelSettingsPatch | null) => {
+    window.clearTimeout(undoTimer.current);
+    setUndo(previous);
+    if (previous) undoTimer.current = window.setTimeout(() => setUndo(null), UNDO_MS);
+  };
+
+  // Ручное изменение после сброса: «Отменить» затёрло бы его старыми значениями, поэтому убираем
   const setCoef = (key: string, value: number) => {
+    offerUndo(null);
     setSettings((s) => s && { ...s, coefficients: s.coefficients.map((c) => (c.key === key ? { ...c, value } : c)) });
     schedule({ coefficients: { [key]: value } });
   };
 
   const setThreshold = (key: 'medium' | 'high', value: number) => {
+    offerUndo(null);
     setSettings((s) => s && { ...s, thresholds: { ...s.thresholds, [key]: value } });
     schedule({ thresholds: { [key]: value } });
   };
 
+  const apply = (patch: ModelSettingsPatch) => {
+    setSettings((s) => s && withValues(s, patch));
+    schedule(patch);
+  };
+
   const resetToDefaults = () => {
-    if (!settings || !window.confirm('Вернуть все коэффициенты и пороги к значениям по умолчанию? Оценки пересчитаются.')) return;
-    setSettings({
-      ...settings,
-      coefficients: settings.coefficients.map((c) => ({ ...c, value: c.defaultValue })),
-      thresholds: { ...settings.defaultThresholds },
-    });
-    schedule(resetToDefaultsPatch(settings));
+    if (!settings) return;
+    offerUndo(currentValuesPatch(settings));
+    apply(resetToDefaultsPatch(settings));
+  };
+
+  const undoReset = () => {
+    if (undo) apply(undo);
+    offerUndo(null);
   };
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -100,12 +123,18 @@ export default function SettingsPage() {
       <section className="panel">
         <div className="panel-head">
           <h2>Коэффициенты risk-score</h2>
-          {settings && (
+          {settings && (undo ? (
+            <div className="undo-bar" role="status">
+              <span>Значения по умолчанию восстановлены</span>
+              <button className="btn btn-ghost" type="button" onClick={undoReset}>Отменить</button>
+              <span className="undo-timer" style={{ animationDuration: `${UNDO_MS}ms` }} aria-hidden="true" />
+            </div>
+          ) : (
             <button className="btn btn-ghost" type="button" onClick={resetToDefaults} disabled={isAtDefaults(settings)}
-                    title="Коэффициенты и пороги уровней риска вернутся к исходным значениям модели">
+                    title="Коэффициенты и пороги уровней риска вернутся к исходным значениям модели. Сброс можно отменить">
               Вернуть значения по умолчанию
             </button>
-          )}
+          ))}
         </div>
         <p className="muted">Чем больше коэффициент, тем сильнее признак влияет на оценку. Изменения применяются сразу и сохраняются после перезапуска.</p>
         {loadError && <p className="error">Не удалось загрузить настройки: {loadError}</p>}

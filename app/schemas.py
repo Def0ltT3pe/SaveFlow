@@ -1,5 +1,5 @@
 """Схемы API, которых нет в app.risk.schemas: авторизация и версии для живого обновления."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.risk.schemas import CamelModel
 
@@ -21,6 +21,10 @@ class UserOut(BaseModel):
 class OidcInfo(BaseModel):
     enabled: bool
     name: str | None = None
+
+
+class OidcLogout(BaseModel):
+    redirect: str = Field(description="Куда перейти браузеру: выход у провайдера или страница входа панели")
 
 
 class Versions(CamelModel):

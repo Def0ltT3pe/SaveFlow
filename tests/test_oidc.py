@@ -14,7 +14,7 @@ from sqlalchemy import select, update
 
 from app.core import oidc
 from app.db import session as dbs
-from app.db.models import OidcLoginRequest
+from app.db.models import AuthSession, OidcLoginRequest
 
 ISSUER = "http://localhost:8180/realms/saveflow"       # как видит браузер, и iss в токенах
 INTERNAL = "http://keycloak:8080/realms/saveflow"      # как видит бэкенд из Docker
@@ -347,3 +347,74 @@ def test_logout_without_provider_returns_to_login(api, provider):
     provider.down = True
     r = api.get("/api/v1/auth/oidc/logout")
     assert r.status_code == 302 and r.headers["location"] == "/login"
+
+RELOGIN = "http://localhost:8080/api/v1/auth/oidc/login"
+
+
+def sso_logout(api, token):
+    return api.post("/api/v1/auth/oidc/logout", headers={"Authorization": f"Bearer {token}"})
+
+
+def test_panel_logout_skips_provider_question_and_opens_its_login_form(api, provider, session):
+    token = sso_login(api, provider)["sso_token"]
+    r = sso_logout(api, token)
+    assert r.status_code == 200
+    location = urlsplit(r.json()["redirect"])
+    assert f"{location.scheme}://{location.netloc}{location.path}" == f"{ISSUER}/protocol/openid-connect/logout"
+    q = {k: v[0] for k, v in parse_qs(location.query).items()}
+    # С id_token_hint провайдер не спрашивает «Выйти?»; вернёт на начало входа — пользователь видит его форму
+    assert q["client_id"] == CLIENT_ID and q["post_logout_redirect_uri"] == RELOGIN
+    assert jwt.decode(q["id_token_hint"], options={"verify_signature": False})["preferred_username"] == "analyst"
+    assert me(api, token).status_code == 401
+    row = session.execute(select(AuthSession.revoked_at, AuthSession.id_token)
+                          .where(AuthSession.token_hash == hashlib.sha256(token.encode()).digest())).one()
+    assert row.revoked_at is not None and row.id_token is None   # после выхода id_token в базе не хранится
+
+
+def test_id_token_is_kept_only_for_oidc_sessions(api, provider, session):
+    sso = sso_login(api, provider)["sso_token"]
+    password = api.post("/api/v1/auth/login", json={"username": "admin", "password": "admin"}).json()["access_token"]
+    stored = {t: session.scalar(select(AuthSession.id_token)
+                                .where(AuthSession.token_hash == hashlib.sha256(t.encode()).digest()))
+              for t in (sso, password)}
+    assert stored[sso].count(".") == 2 and stored[password] is None
+
+
+def test_logout_without_id_token_still_goes_through_provider(api, provider):
+    token = api.post("/api/v1/auth/login", json={"username": "admin", "password": "admin"}).json()["access_token"]
+    q = parse_qs(urlsplit(sso_logout(api, token).json()["redirect"]).query)
+    assert "id_token_hint" not in q and q["post_logout_redirect_uri"] == [RELOGIN]
+    assert me(api, token).status_code == 401
+
+
+def test_logout_hint_dropped_when_provider_changed_keys(api, provider):
+    # Иначе провайдер показал бы страницу ошибки вместо выхода
+    token = sso_login(api, provider)["sso_token"]
+    provider.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    provider.kid = "key-2"
+    q = parse_qs(urlsplit(sso_logout(api, token).json()["redirect"]).query)
+    assert "id_token_hint" not in q and q["post_logout_redirect_uri"] == [RELOGIN]
+
+
+def test_expired_id_token_is_still_a_logout_hint(provider):
+    # id_token живёт минуты, сессия панели — часы: к моменту выхода он почти всегда просрочен
+    cfg = oidc.config()
+    now = int(time.time())
+    claims = {"iss": ISSUER, "aud": CLIENT_ID, "sub": "id-analyst", "iat": now - 7200, "exp": now - 3600}
+    expired = jwt.encode(claims, provider.key, algorithm="RS256", headers={"kid": provider.kid})
+    assert oidc.logout_hint(cfg, expired) == expired
+    other = jwt.encode({**claims, "aud": "other-app"}, provider.key, algorithm="RS256", headers={"kid": provider.kid})
+    assert oidc.logout_hint(cfg, other) is None
+    assert oidc.logout_hint(cfg, "not-a-token") is None and oidc.logout_hint(cfg, None) is None
+
+
+def test_panel_logout_with_provider_down_returns_to_login(api, provider):
+    token = sso_login(api, provider)["sso_token"]
+    provider.down = True
+    oidc._cache.clear()
+    r = sso_logout(api, token)
+    assert r.status_code == 200 and r.json() == {"redirect": "/login"} and me(api, token).status_code == 401
+
+
+def test_panel_logout_needs_session(api, provider):
+    assert api.post("/api/v1/auth/oidc/logout").status_code == 401
