@@ -7,6 +7,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.api import events
 from app.risk import service
+from app.risk.schemas import ModelSettings
 from tests.test_auth_sessions import api, login  # noqa: F401  (фикстура api)
 
 PROTECTED = [
@@ -112,6 +113,16 @@ def test_settings_patch_recalculates(client):
     v1 = client.get("/api/v1/events/version").json()
     assert v1["runId"] > v0["runId"] and v1["settingsVersion"] == after["version"]
     assert client.get("/api/v1/analytics/summary").json()["money"]["expectedLoss"] != loss0
+
+
+def test_settings_defaults_allow_reset(client):
+    defaults = ModelSettings().model_dump(by_alias=True)
+    changed = client.patch("/api/v1/model/settings",
+                           json={"weights": {"prolong_wait": 90}, "thresholds": {"high": 70, "medium": 40}}).json()
+    assert changed["defaults"] == defaults and changed["settings"] != defaults
+    r = client.patch("/api/v1/model/settings",
+                     json={"weights": defaults["weights"], "thresholds": defaults["thresholds"]})
+    assert r.status_code == 200 and r.json()["settings"] == defaults == r.json()["defaults"]
 
 
 @pytest.mark.parametrize("body", [{"weights": {"prolong_wait": 101}}, {"weights": {"nope": 1}},

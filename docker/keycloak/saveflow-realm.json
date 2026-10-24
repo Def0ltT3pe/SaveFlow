@@ -1,6 +1,7 @@
 {
   "realm": "saveflow",
   "displayName": "SaveFlow",
+  "loginTheme": "saveflow",
   "enabled": true,
   "sslRequired": "none",
   "registrationAllowed": false,

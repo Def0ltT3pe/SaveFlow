@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { isAtDefaults, resetToDefaultsPatch } from '../api/backend';
 import { emitChanged, errorMessage, getSettings, patchSettings, putSnapshot } from '../api/client';
 import type { ModelSettings, ModelSettingsPatch, SourceSnapshot } from '../types';
 
@@ -54,6 +55,16 @@ export default function SettingsPage() {
     schedule({ thresholds: { [key]: value } });
   };
 
+  const resetToDefaults = () => {
+    if (!settings || !window.confirm('Вернуть все коэффициенты и пороги к значениям по умолчанию? Оценки пересчитаются.')) return;
+    setSettings({
+      ...settings,
+      coefficients: settings.coefficients.map((c) => ({ ...c, value: c.defaultValue })),
+      thresholds: { ...settings.defaultThresholds },
+    });
+    schedule(resetToDefaultsPatch(settings));
+  };
+
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -87,7 +98,15 @@ export default function SettingsPage() {
       </div>
 
       <section className="panel">
-        <h2>Коэффициенты isk-score</h2>
+        <div className="panel-head">
+          <h2>Коэффициенты risk-score</h2>
+          {settings && (
+            <button className="btn btn-ghost" type="button" onClick={resetToDefaults} disabled={isAtDefaults(settings)}
+                    title="Коэффициенты и пороги уровней риска вернутся к исходным значениям модели">
+              Вернуть значения по умолчанию
+            </button>
+          )}
+        </div>
         <p className="muted">Чем больше коэффициент, тем сильнее признак влияет на оценку. Изменения применяются сразу и сохраняются после перезапуска.</p>
         {loadError && <p className="error">Не удалось загрузить настройки: {loadError}</p>}
         {!settings && !loadError && <p className="muted">Загружаем…</p>}
@@ -97,6 +116,7 @@ export default function SettingsPage() {
               <label htmlFor={`c-${c.key}`}>
                 <b>{c.label}</b>
                 {c.description && <span className="muted"> {c.description}</span>}
+                {c.value !== c.defaultValue && <span className="muted"> (по умолчанию {c.defaultValue})</span>}
               </label>
               <div className="slider-row">
                 <input id={`c-${c.key}`} type="range" min={c.min} max={c.max} step={c.step ?? 0.05} value={c.value} onChange={(e) => setCoef(c.key, Number(e.target.value))} />

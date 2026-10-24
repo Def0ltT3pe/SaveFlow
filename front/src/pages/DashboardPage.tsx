@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { toChartData } from '../api/chart';
 import { getSummary, useLive } from '../api/client';
+import { LOSS_LEVEL_LABEL, formatShare, lossSeverity } from '../api/money';
 import ChurnChart from '../components/ChurnChart';
 import Money from '../components/Money';
 import { riskLabel } from '../components/RiskBadge';
@@ -17,6 +18,7 @@ export default function DashboardPage() {
 
   const total = LEVELS.reduce((s, l) => s + (data.byLevel[l] ?? 0), 0) || 1;
   const { rows: chart, forecastStart } = toChartData(data.churnSeries ?? []);
+  const loss = lossSeverity(data.expectedLoss, data.horizonRevenue);
 
   return (
     <div className="page">
@@ -26,10 +28,16 @@ export default function DashboardPage() {
       </div>
       {error && <p className="error">Данные могут быть устаревшими: {error}</p>}
 
-      <section className="loss panel">
+      <section className={`loss loss-${loss.level} panel`}>
         <div>
           <div className="muted">Ожидаемые потери</div>
           <Money value={data.expectedLoss} className="loss-value" />
+          {loss.share !== null && (
+            <span className={`loss-share loss-share-${loss.level}`}
+                  title={`Доля ожидаемых потерь во всей выручке от продлений за ${data.horizonDays} дн.: до 10 % — низкая, до 25 % — заметная, от 25 % — высокая`}>
+              {formatShare(loss.share)} выручки за {data.horizonDays} дн. · {LOSS_LEVEL_LABEL[loss.level]}
+            </span>
+          )}
           <div className="muted">
             из <Money value={data.revenueAtRisk} /> выручки под угрозой · услуг под риском: <b className="num">{data.servicesAtRisk}</b>
           </div>

@@ -104,6 +104,9 @@ export interface AnalyticsSummary {
   revenueAtRisk: Cents;
   /** Ожидаемые потери с учётом вероятности */
   expectedLoss: Cents;
+  /** Вся выручка от продлений за горизонт прогноза: база для доли потерь */
+  horizonRevenue: Cents;
+  horizonDays: number;
   /** Объяснение смысла денежной оценки (формула простыми словами) */
   lossExplanation?: string;
   churnSeries?: ChurnPoint[];
@@ -116,6 +119,8 @@ export interface Coefficient {
   label: string;
   description?: string;
   value: number;
+  /** значение по умолчанию: к нему возвращает кнопка сброса */
+  defaultValue: number;
   min: number;
   max: number;
   step?: number;
@@ -124,6 +129,7 @@ export interface Coefficient {
 export interface ModelSettings {
   coefficients: Coefficient[];
   thresholds: { medium: number; high: number };
+  defaultThresholds: { medium: number; high: number };
   /** сколько часов/дней смотрим вперёд, если бэкенд это поддерживает */
   horizonDays?: number;
 }

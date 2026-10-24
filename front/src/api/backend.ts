@@ -78,6 +78,7 @@ export interface BSummary {
   accountsTotal: number;
   accountsByLevel: Record<BackendLevel, number>;
   servicesAtRisk: number;
+  horizonDays: number;
   money: BMoney;
   explanation: string;
 }
@@ -102,6 +103,7 @@ export interface BSettings {
   };
   version: number;
   features: { key: string; title: string; description: string; defaultWeight: number }[];
+  defaults: { weights: Record<string, number>; thresholds: { high: number; medium: number } };
 }
 
 export const toCustomer = (c: BCustomer): CustomerListItem => ({
@@ -163,6 +165,8 @@ export const toSummary = (s: BSummary, t: BTimeline): AnalyticsSummary => ({
   servicesAtRisk: s.servicesAtRisk,
   revenueAtRisk: s.money.atRisk,
   expectedLoss: s.money.expectedLoss,
+  horizonRevenue: s.money.horizonRevenue,
+  horizonDays: s.horizonDays,
   lossExplanation: s.explanation,
   churnSeries: t.points.map(toChurnPoint),
   updatedAt: s.run?.computedAt,
@@ -174,13 +178,26 @@ export const toSettings = (b: BSettings): ModelSettings => ({
     label: f.title,
     description: f.description,
     value: b.settings.weights[f.key] ?? f.defaultWeight,
+    defaultValue: b.defaults.weights[f.key] ?? f.defaultWeight,
     min: 0,
     max: 100,
     step: 1,
   })),
   thresholds: b.settings.thresholds,
+  defaultThresholds: b.defaults.thresholds,
   horizonDays: b.settings.horizonDays,
 });
+
+/** Тело PATCH, возвращающее все ползунки (коэффициенты и пороги) к значениям по умолчанию. */
+export const resetToDefaultsPatch = (s: ModelSettings): ModelSettingsPatch => ({
+  coefficients: Object.fromEntries(s.coefficients.map((c) => [c.key, c.defaultValue])),
+  thresholds: { ...s.defaultThresholds },
+});
+
+/** Стоят ли все ползунки на значениях по умолчанию. */
+export const isAtDefaults = (s: ModelSettings): boolean =>
+  s.coefficients.every((c) => c.value === c.defaultValue) &&
+  s.thresholds.high === s.defaultThresholds.high && s.thresholds.medium === s.defaultThresholds.medium;
 
 export const fromSettingsPatch = (p: ModelSettingsPatch) => {
   const body: Record<string, unknown> = {};

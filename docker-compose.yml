@@ -59,6 +59,7 @@ services:
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"   # токены и ключи бэкенд берёт по http://keycloak:8080
     volumes:
       - ./docker/keycloak/saveflow-realm.json:/opt/keycloak/data/import/saveflow-realm.json:ro
+      - ./docker/keycloak/themes/saveflow:/opt/keycloak/themes/saveflow:ro   # страница входа в стиле SaveFlow
     ports:
       - "${KEYCLOAK_PORT:-8180}:8080"
 

@@ -21,7 +21,7 @@
     "asOfFixed": null
   },
   "version": 2,
-  "updatedAt": "2026-10-24T15:02:44.258000Z",
+  "updatedAt": "2026-10-24T16:14:46.177000Z",
   "features": [
     {
       "key": "prolong_wait",
@@ -65,5 +65,26 @@
       "description": "Услуга подключена недавно: в первые недели клиенты отказываются чаще. Сигнал затухает к концу периода.",
       "defaultWeight": 5.0
     }
-  ]
+  ],
+  "defaults": {
+    "weights": {
+      "prolong_wait": 45.0,
+      "expiring_no_autoprolong": 30.0,
+      "insufficient_funds": 35.0,
+      "suspended": 10.0,
+      "churn_history": 15.0,
+      "unpaid_transactions": 10.0,
+      "new_service": 5.0
+    },
+    "thresholds": {
+      "high": 60.0,
+      "medium": 30.0
+    },
+    "horizonDays": 30,
+    "prolongWaitGraceDays": 5,
+    "newServiceDays": 30,
+    "aggregation": "max",
+    "asOfMode": "snapshot",
+    "asOfFixed": null
+  }
 }

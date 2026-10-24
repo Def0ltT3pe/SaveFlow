@@ -225,6 +225,8 @@ class ModelSettingsOut(CamelModel):
     version: int
     updated_at: datetime
     features: list[FeatureInfo]
+    defaults: ModelSettings = Field(default_factory=ModelSettings,
+                                    description="Значения по умолчанию: для кнопки «Вернуть значения по умолчанию»")
 
 
 # --- Выход: результаты оценки ------------------------------------------------

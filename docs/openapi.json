@@ -1364,6 +1364,10 @@
             },
             "type": "array",
             "title": "Features"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/ModelSettings",
+            "description": "Значения по умолчанию: для кнопки «Вернуть значения по умолчанию»"
           }
         },
         "type": "object",

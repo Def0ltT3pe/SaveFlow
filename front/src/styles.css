@@ -65,12 +65,20 @@ a { color: var(--accent-ink); } p { margin: .4rem 0; }
 .btn:hover { background: var(--black); color: #fff; }
 .btn-ghost { background: transparent; color: var(--black); border: 1.5px solid var(--black); padding: 5px 12px; }
 .btn-ghost:hover { background: var(--black); color: #fff; }
+.btn:disabled, .btn:disabled:hover { opacity: .45; cursor: default; background: transparent; color: var(--black); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: .6rem; }
+.panel-head h2 { margin: 0; }
 input[type=search], input[type=text], input[type=password], input[type=number] { font: inherit; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); }
 input:focus { border-color: var(--black); }
 
 /* ——— дашборд ——— */
-.loss { display: grid; grid-template-columns: minmax(260px, 1fr) 1.2fr; gap: 24px; align-items: center; border-left: 6px solid var(--orange); }
-.loss-value { display: block; font-family: var(--font-display); font-size: 2.8rem; font-weight: 900; color: var(--high); line-height: 1.1; }
+/* Сумма потерь — нейтральная; цвет полосы и плашки показывает долю потерь в выручке за горизонт (api/money.ts) */
+.loss { display: grid; grid-template-columns: minmax(260px, 1fr) 1.2fr; gap: 24px; align-items: center; border-left: 6px solid var(--unk-fill); }
+.loss-low { border-left-color: var(--low-fill); } .loss-medium { border-left-color: var(--med-fill); } .loss-high { border-left-color: var(--high-fill); }
+.loss-value { display: block; font-family: var(--font-display); font-size: 2.8rem; font-weight: 900; color: var(--black); line-height: 1.1; }
+.loss-share { display: inline-block; margin: 4px 0 6px; padding: 2px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; cursor: help; }
+.loss-share-low { background: var(--low-bg); color: var(--low); } .loss-share-medium { background: var(--med-bg); color: var(--med); }
+.loss-share-high { background: var(--high-bg); color: var(--high); }
 .loss-note { color: var(--muted); margin: 0; }
 
 .distribution { display: flex; height: 28px; border-radius: 8px; overflow: hidden; gap: 3px; margin: 8px 0 14px; }
@@ -112,7 +120,7 @@ tbody tr:hover { background: var(--gray); }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .stat { display: flex; flex-direction: column; gap: 4px; }
 .stat-v { font-family: var(--font-display); font-size: 1.45rem; font-weight: 800; }
-.loss-stat { border-left: 5px solid var(--orange); } .loss-stat .stat-v { color: var(--high); }
+.loss-stat { border-left: 5px solid var(--unk-fill); }
 .factors { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 16px; }
 .factor-top { display: flex; justify-content: space-between; }
 .factor-pts { font-family: var(--font-display); font-weight: 800; }
