@@ -22,8 +22,8 @@ export default function LoginPage({ onLogin }: { onLogin: () => void }) {
     <div className="login-wrap">
       <form className="panel login" onSubmit={submit}>
         <h1>Вход</h1>
-        <label>Логин<input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus /></label>
-        <label>Пароль<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+        <label>Логин<input type="text" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoFocus /></label>
+        <label>Пароль<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></label>
         {error && <p className="error">{error}</p>}
         <button className="btn" type="submit">Войти</button>
       </form>

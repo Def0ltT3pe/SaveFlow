@@ -15,7 +15,7 @@ export default function Layout({ user, onLogout }: { user: User; onLogout: () =>
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark" aria-hidden />
-          <span>Анализатор оттока</span>
+          <span>SaveFlow</span>
         </div>
         <nav>
           {NAV.map((n) => (
