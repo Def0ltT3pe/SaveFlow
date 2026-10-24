@@ -270,10 +270,11 @@ def update_settings(session: Session, patch: ModelSettingsPatch | dict) -> dict:
 
 def _money(r: AccountRisk | None) -> Money:
     if r is None:
-        return Money(monthly_revenue=0, horizon_revenue=0, secured_by_balance=0, at_risk=0,
+        return Money(monthly_revenue=0, horizon_revenue=0, secured_by_balance=0, covered_by_bonus=0, at_risk=0,
                      expected_loss=0, expected_monthly_loss=0)
     return Money(monthly_revenue=_float(r.monthly_revenue), horizon_revenue=_float(r.horizon_revenue),
-                 secured_by_balance=_float(r.secured_by_balance), at_risk=_float(r.at_risk),
+                 secured_by_balance=_float(r.secured_by_balance), covered_by_bonus=_float(r.covered_by_bonus),
+                 at_risk=_float(r.at_risk),
                  expected_loss=_float(r.expected_loss), expected_monthly_loss=_float(r.expected_monthly_loss))
 
 
@@ -372,7 +373,8 @@ def get_customer(session: Session, customer_id: int | str) -> dict | None:
             days_to_expiry=_float(sr and sr.days_to_expiry),
             renewals_in_horizon=sr.renewals_in_horizon if sr else 0,
             monthly_price=_float(sr and sr.monthly_price), horizon_revenue=_float(sr and sr.horizon_revenue),
-            secured_by_balance=_float(sr and sr.secured_by_balance), at_risk=_float(sr and sr.at_risk),
+            secured_by_balance=_float(sr and sr.secured_by_balance),
+            covered_by_bonus=_float(sr and sr.covered_by_bonus), at_risk=_float(sr and sr.at_risk),
             expected_loss=_float(sr and sr.expected_loss),
             expected_monthly_loss=_float(sr and sr.expected_monthly_loss),
             contributions=sr.contributions if sr else [],
@@ -401,13 +403,14 @@ def _summary(session: Session) -> RiskSummary:
             *(func.count().filter(level == name) for name in LEVELS),
             func.avg(AccountRisk.score),
             func.sum(AccountRisk.monthly_revenue), func.sum(AccountRisk.horizon_revenue),
-            func.sum(AccountRisk.secured_by_balance), func.sum(AccountRisk.at_risk),
+            func.sum(AccountRisk.secured_by_balance), func.sum(AccountRisk.covered_by_bonus),
+            func.sum(AccountRisk.at_risk),
             func.sum(AccountRisk.expected_loss), func.sum(AccountRisk.expected_monthly_loss),
             func.sum(AccountRisk.at_risk).filter(high), func.sum(Account.balance).filter(high),
             func.sum(Account.withdraw_balance).filter(high),
         ).select_from(Account).outerjoin(AccountRisk, AccountRisk.account_id == Account.id)
     ).one()
-    (total, n_high, n_medium, n_low, n_none, avg_score, monthly, horizon, secured, at_risk,
+    (total, n_high, n_medium, n_low, n_none, avg_score, monthly, horizon, secured, by_bonus, at_risk,
      loss, monthly_loss, high_at_risk, high_balance, high_withdraw) = a
     s = session.execute(
         select(func.count(Service.id), func.count().filter(ServiceRisk.scored),
@@ -416,16 +419,16 @@ def _summary(session: Session) -> RiskSummary:
     ).one()
 
     money = Money(monthly_revenue=_float(monthly), horizon_revenue=_float(horizon),
-                  secured_by_balance=_float(secured), at_risk=_float(at_risk),
+                  secured_by_balance=_float(secured), covered_by_bonus=_float(by_bonus), at_risk=_float(at_risk),
                   expected_loss=_float(loss), expected_monthly_loss=_float(monthly_loss))
     h = settings.horizon_days
     explanation = (
-        f"Ожидаемая потеря за {h} дн.: {eur(money.expected_loss)}. Это сумма по всем действующим услугам: "
-        f"вероятность ухода клиента (score / 100) × деньги, которые клиент должен заплатить за продления "
-        f"в ближайшие {h} дн. и которые ещё не покрыты его балансом при включённом автопродлении. "
-        f"Всего за {h} дн. ожидается {eur(money.horizon_revenue)}, из них {eur(money.secured_by_balance)} "
-        f"уже лежит на балансах и спишется автоматически, под риском {eur(money.at_risk)}. "
-        f"Ежемесячная выручка {eur(money.monthly_revenue)}, ожидаемая потеря в месяц {eur(money.expected_monthly_loss)}."
+        f"Ожидаемая потеря за {h} дн.: {eur(money.expected_loss)}. По каждому клиенту: вероятность его ухода "
+        f"(score / 100) × сумма под угрозой — продления за ближайшие {h} дн., которые автопродление не спишет "
+        f"ни с баланса, ни с бонусов. Всего продлений на {eur(money.horizon_revenue)}: "
+        f"{eur(money.secured_by_balance)} спишется с балансов, {eur(money.covered_by_bonus)} оплатят бонусы, "
+        f"под угрозой {eur(money.at_risk)}. Ежемесячная выручка {eur(money.monthly_revenue)}, "
+        f"ожидаемая потеря в месяц {eur(money.expected_monthly_loss)}."
     )
     return RiskSummary(
         run=_run_out(run), horizon_days=h, accounts_total=total,
@@ -467,6 +470,8 @@ def render_metrics(session: Session) -> str:
            [(horizon, round(s.money.at_risk / 100, 2))])
     metric("churn_horizon_revenue_eur", "Revenue due over the forecast horizon, EUR",
            [(horizon, round(s.money.horizon_revenue / 100, 2))])
+    metric("churn_covered_by_bonus_eur", "Horizon renewals that autoprolong pays with bonuses, EUR",
+           [(horizon, round(s.money.covered_by_bonus / 100, 2))])
     metric("churn_monthly_revenue_eur", "Monthly recurring revenue of live services, EUR",
            [("", round(s.money.monthly_revenue / 100, 2))])
     metric("churn_expected_monthly_loss_eur", "Expected monthly recurring revenue loss, EUR",

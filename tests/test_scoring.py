@@ -37,7 +37,7 @@ def test_safe_customer_has_low_risk():
 def test_prolong_wait_without_money_is_high_risk():
     r = score([service(status="prolong_wait", expires_in_days=-1)], account(balance=0))
     assert points(r, "prolong_wait") == 45
-    assert points(r, "insufficient_funds") == 25
+    assert points(r, "insufficient_funds") == 35  # не хватает уже на ближайшее продление
     assert r.level == "high"
     assert "удалена через 4 дн." in r.reasons[0]["text"]
 
@@ -60,14 +60,17 @@ def test_money_uses_balance_only_for_autoprolong():
     by_id = {s.service.id: s for s in r.services}
     assert by_id[1].secured_by_balance == 300 and by_id[1].at_risk == 200
     assert by_id[2].secured_by_balance == 0 and by_id[2].at_risk == 200
-    assert r.expected_loss == pytest.approx(sum(s.probability * s.at_risk for s in r.services))
+    # Деньги — по вероятности ухода клиента, как в объяснении на панели
+    assert r.expected_loss == pytest.approx(r.score / 100 * r.at_risk, abs=0.01)
 
 
-def test_unlocked_bonus_counts_for_funds_but_not_for_secured_revenue():
+def test_unlocked_bonus_pays_renewal_and_is_not_at_risk():
     locked = score([service(price=1000)], account(balance=0, bonus=2000, bonus_state="locked"))
     unlocked = score([service(price=1000)], account(balance=0, bonus=2000, bonus_state="unlocked"))
-    assert points(locked, "insufficient_funds") == 25 and points(unlocked, "insufficient_funds") == 0
-    assert unlocked.secured_by_balance == 0
+    assert points(locked, "insufficient_funds") > 0 and points(unlocked, "insufficient_funds") == 0
+    assert unlocked.secured_by_balance == 0 and unlocked.covered_by_bonus == 1000
+    assert unlocked.at_risk == 0 and unlocked.expected_loss == 0
+    assert locked.at_risk == 1000
 
 
 def test_renewals_in_horizon():
@@ -172,3 +175,49 @@ def test_stored_settings_fall_back_field_by_field(stored, check):
     from app.risk.store import settings_from_stored
 
     assert check(settings_from_stored(stored))
+
+
+# --- Деньги и нехватка средств -------------------------------------------------------
+
+
+def test_expected_loss_matches_explanation_formula():
+    services = [service(1, price=900, expires_in_days=3, auto=False),
+                service(2, status="prolong_wait", price=200, expires_in_days=-1)]
+    r = score(services, account(balance=100))
+    assert r.expected_loss == pytest.approx(r.score / 100 * r.at_risk, abs=0.01)
+    assert r.expected_monthly_loss == pytest.approx(r.score / 100 * r.monthly_revenue, abs=0.01)
+
+
+def test_money_running_out_alone_gives_medium_risk():
+    r = score([service(price=800, expires_in_days=2)], account(balance=100))  # на ближайшее продление не хватает
+    assert points(r, "insufficient_funds") >= 30 and r.level == "medium"
+    assert "не хватит на ближайшее продление через 2 дн." in r.reasons[0]["text"]
+    now = score([service(status="prolong_wait", price=800, expires_in_days=-1)], account(balance=100))
+    assert points(now, "insufficient_funds") == 35
+    assert any("нужно оплатить сейчас" in x["text"] for x in now.reasons)
+
+
+def test_sooner_money_runs_out_stronger_signal():
+    hourly = lambda bal: score([service(term="hour", price=10, expires_in_days=0.5 / 24)], account(balance=bal))
+    two_days, ten_days, enough = hourly(10 * 24 * 2), hourly(10 * 24 * 10), hourly(10 * 24 * 31)
+    assert points(two_days, "insufficient_funds") > points(ten_days, "insufficient_funds") > 0
+    assert points(enough, "insufficient_funds") == 0
+    assert points(two_days, "insufficient_funds") == pytest.approx(35 * (1 - 0.5 * 2 / 30), abs=0.3)
+    late = score([service(price=800, expires_in_days=29)], account(balance=0))
+    assert points(late, "insufficient_funds") >= 35 * 0.5
+    assert "кончатся через 2 дн." in two_days.reasons[0]["text"]
+
+
+def test_hourly_service_running_out_has_meaningful_expected_loss():
+    r = score([service(term="hour", price=10, expires_in_days=0.5 / 24)], account(balance=10 * 24 * 2))
+    s = r.services[0]
+    assert s.secured_by_balance == 480 and s.at_risk == s.horizon_revenue - 480
+    assert r.expected_loss / r.at_risk >= 0.3  # раньше было 2–7 %
+
+
+def test_funds_text_separates_balance_and_bonus():
+    unlocked = score([service(price=5000, expires_in_days=2)], account(balance=200, bonus=3000, bonus_state="unlocked"))
+    locked = score([service(price=5000, expires_in_days=2)], account(balance=200, bonus=3000, bonus_state="locked"))
+    assert "на балансе €2.00 и бонусах €30.00" in unlocked.reasons[0]["text"]
+    assert "на балансе €2.00 (бонусы €30.00 заблокированы)" in locked.reasons[0]["text"]
+    assert "€32.00" not in unlocked.reasons[0]["text"]

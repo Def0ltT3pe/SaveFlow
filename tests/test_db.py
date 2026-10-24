@@ -269,6 +269,19 @@ def test_timeline_counts_each_deletion_once(session, loaded, source_data):
     assert by_day.get("2026-10-21", 0) == 1 and by_day.get("2026-10-19", 0) == 0
 
 
+def test_summary_explanation_matches_calculation(session, loaded):
+    from app.risk.fmt import eur
+
+    summary = service.get_summary(session)
+    m = summary["money"]
+    customers = service.get_customers(session, limit=500)["items"]
+    by_formula = sum((c["score"] or 0) / 100 * c["money"]["atRisk"] for c in customers)
+    assert m["expectedLoss"] == pytest.approx(by_formula, abs=0.05 * len(customers))
+    assert m["horizonRevenue"] == pytest.approx(m["securedByBalance"] + m["coveredByBonus"] + m["atRisk"], abs=0.05)
+    for value in (m["expectedLoss"], m["horizonRevenue"], m["securedByBalance"], m["coveredByBonus"], m["atRisk"]):
+        assert eur(value) in summary["explanation"]
+
+
 def test_invalid_snapshot_is_rejected_before_db(session, loaded, source_data):
     data = copy.deepcopy(source_data)
     data["services"][0]["ownerId"] = 999

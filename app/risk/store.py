@@ -174,6 +174,7 @@ def write_results(session: Session, results: list[AccountResult]) -> None:
             account_id=r.account.id, score=r.score, level=r.level, reasons=r.reasons,
             live_services=r.live_services, monthly_revenue=r.monthly_revenue,
             horizon_revenue=r.horizon_revenue, secured_by_balance=r.secured_by_balance,
+            covered_by_bonus=r.covered_by_bonus,
             at_risk=r.at_risk, expected_loss=r.expected_loss,
             expected_monthly_loss=r.expected_monthly_loss,
         ))
@@ -186,7 +187,8 @@ def write_results(session: Session, results: list[AccountResult]) -> None:
                                for c in s.contributions],
                 days_to_expiry=round(s.days_to_expiry, 3), renewals_in_horizon=s.renewals_in_horizon,
                 monthly_price=round(s.monthly_price, 2), horizon_revenue=round(s.horizon_revenue, 2),
-                secured_by_balance=round(s.secured_by_balance, 2), at_risk=round(s.at_risk, 2),
+                secured_by_balance=round(s.secured_by_balance, 2), covered_by_bonus=round(s.covered_by_bonus, 2),
+                at_risk=round(s.at_risk, 2),
                 expected_loss=round(s.expected_loss, 2),
                 expected_monthly_loss=round(s.expected_monthly_loss, 2),
             ))

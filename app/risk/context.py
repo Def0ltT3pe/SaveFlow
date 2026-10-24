@@ -22,4 +22,7 @@ class ServiceContext:
     horizon_cost: int  # сколько стоят продления этой услуги в горизонте, евроценты
     account_horizon_cost: int  # то же по всем действующим услугам клиента
     available_funds: int  # balance + доступный бонус
-    funded_share: float  # доля horizon_cost, которую покрывают available_funds (0..1)
+    # Через сколько дней кончатся деньги на продления всех услуг клиента (None — хватит на весь горизонт)
+    runway_days: float | None
+    # Через сколько дней у этой услуги будет первое продление, на которое денег уже не хватит (None — хватит)
+    unfunded_in_days: float | None
