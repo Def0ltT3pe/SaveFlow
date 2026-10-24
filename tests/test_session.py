@@ -70,3 +70,10 @@ def test_dbcheck_ok_on_migrated_database(engine, loaded, capsys):
         db.get_engine.cache_clear()
     out = capsys.readouterr().out
     assert "Всё в порядке" in out and "Клиентов:    10" in out
+
+
+@pytest.mark.parametrize("value", ["5s", "abc", "0", "-3"])
+def test_bad_pool_setting_falls_back_to_default(env_file, monkeypatch, caplog, value):
+    monkeypatch.setenv("DB_CONNECT_TIMEOUT", value)
+    assert db._int("DB_CONNECT_TIMEOUT", 5) == 5
+    assert "DB_CONNECT_TIMEOUT" in caplog.text

@@ -1,7 +1,9 @@
 import json
 from datetime import datetime, timezone
 
+from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.db.models import (
@@ -53,13 +55,34 @@ def load_settings(session: Session, for_update: bool = False) -> tuple[ModelSett
         stmt = stmt.with_for_update()
     row = session.scalar(stmt)
     if row is None:
-        session.execute(insert(ModelSettingsRow).values(id=1, data={}))
+        session.execute(pg_insert(ModelSettingsRow).values(id=1, data={}).on_conflict_do_nothing())
         row = session.scalar(stmt)
-    data = dict(row.data or {})
-    # Веса удалённых из кода признаков молча отбрасываются, новые получают значения по умолчанию.
+    return settings_from_stored(row.data), row.version, row.updated_at
+
+
+def settings_from_stored(data) -> ModelSettings:
+    """Настройки из БД; поля, которые не проходят текущую проверку, заменяются значениями по умолчанию.
+
+    Иначе одно битое поле (ручная правка, данные от старой версии кода, ужесточённая проверка)
+    роняло бы все чтения настроек, а PATCH, которым его можно исправить, падал бы вместе с ними.
+    """
+    data = dict(data) if isinstance(data, dict) else {}
+    # Веса удалённых из кода признаков и нечисловые/вне 0..100 отбрасываются, остальные берутся по умолчанию.
     known = all_features()
-    data["weights"] = {k: v for k, v in (data.get("weights") or {}).items() if k in known}
-    return ModelSettings.model_validate(data), row.version, row.updated_at
+    weights = data.get("weights") if isinstance(data.get("weights"), dict) else {}
+    data["weights"] = {k: v for k, v in weights.items()
+                       if k in known and isinstance(v, int | float) and not isinstance(v, bool) and 0 <= v <= 100}
+    for _ in range(len(data) + 1):
+        try:
+            return ModelSettings.model_validate(data)
+        except ValidationError as exc:
+            broken = {err["loc"][0] for err in exc.errors() if err["loc"]}
+            if not broken:  # ошибка уровня модели: asOfMode=fixed без asOfFixed
+                broken = {"asOfMode", "asOfFixed", "as_of_mode", "as_of_fixed"}
+            if not broken & data.keys():
+                break
+            data = {k: v for k, v in data.items() if k not in broken}
+    return ModelSettings()
 
 
 def save_settings(session: Session, settings: ModelSettings) -> tuple[int, datetime]:
@@ -72,6 +95,26 @@ def save_settings(session: Session, settings: ModelSettings) -> tuple[int, datet
         .execution_options(synchronize_session=False)
     ).one()
     return row.version, row.updated_at
+
+
+def revert_settings(session: Session, previous: ModelSettings, *, saved_version: int) -> bool:
+    """Вернуть прежние настройки новой версией, только если текущая версия всё ещё saved_version."""
+    reverted = session.execute(
+        update(ModelSettingsRow)
+        .where(ModelSettingsRow.id == 1, ModelSettingsRow.version == saved_version)
+        .values(data=previous.model_dump(mode="json", by_alias=True),
+                version=ModelSettingsRow.version + 1, updated_at=func.now())
+        .returning(ModelSettingsRow.version)
+        .execution_options(synchronize_session=False)
+    ).scalar_one_or_none()
+    return reverted is not None
+
+
+def run_settings(session: Session, run: RiskRun | None) -> ModelSettings:
+    """Настройки, с которыми посчитан пересчёт; для старых записей без снимка настроек — текущие."""
+    if run is not None and run.settings:
+        return settings_from_stored(run.settings)
+    return load_settings(session)[0]
 
 
 def resolve_as_of(session: Session, settings: ModelSettings) -> datetime:
@@ -153,11 +196,12 @@ def write_results(session: Session, results: list[AccountResult]) -> None:
         session.execute(insert(ServiceRisk), service_rows)
 
 
-def insert_run(session: Session, *, as_of: datetime, settings_version: int,
+def insert_run(session: Session, *, as_of: datetime, settings: ModelSettings, settings_version: int,
                snapshot_id: int | None, reason: str) -> RiskRun:
     run_id = session.execute(
         insert(RiskRun)
-        .values(as_of=as_of, settings_version=settings_version, snapshot_id=snapshot_id, reason=reason)
+        .values(as_of=as_of, settings=settings.model_dump(mode="json", by_alias=True),
+                settings_version=settings_version, snapshot_id=snapshot_id, reason=reason)
         .returning(RiskRun.id)
     ).scalar_one()
     return session.get(RiskRun, run_id)

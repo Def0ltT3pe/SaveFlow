@@ -126,3 +126,49 @@ def test_snapshot_validation_reports_broken_references():
         SnapshotIn.model_validate(data)
     text = str(err.value)
     assert "повторяющиеся id" in text and "ownerId без аккаунта" in text and "serviceId без услуги" in text
+
+
+# --- Находки ревью -----------------------------------------------------------------
+
+
+def test_prolong_wait_is_never_secured_by_balance():
+    r = score([service(status="prolong_wait", auto=True, price=900, expires_in_days=-2)], account(balance=10_000))
+    s = r.services[0]
+    assert s.secured_by_balance == 0 and s.at_risk == s.horizon_revenue > 0
+    assert r.expected_loss > 0
+
+
+def test_services_created_after_as_of_are_ignored():
+    future = ServiceData(1, "s-1", 1, "month", False, NOW + timedelta(days=10), NOW + timedelta(days=40), "active", 500)
+    r = score([future], account(balance=0))
+    assert r.score is None and r.level == "none" and r.horizon_revenue == 0
+
+
+def test_prolong_wait_with_future_expiry_is_due_now():
+    r = score([service(status="prolong_wait", price=500, expires_in_days=10)], account(balance=0))
+    s = r.services[0]
+    assert s.renewals_in_horizon >= 1 and s.horizon_revenue >= 500
+    assert "удалена через 5 дн." in r.reasons[0]["text"]
+
+
+def test_reason_text_for_less_than_an_hour():
+    r = score([service(term="hour", auto=False, price=2, expires_in_days=0.25 / 24)], account(balance=10_000))
+    texts = [c.text for c in r.services[0].contributions]
+    assert any(t.startswith("Истекает менее чем через час") for t in texts), texts
+    assert not any("через менее" in t for t in texts)
+
+
+@pytest.mark.parametrize("stored,check", [
+    ({"horizonDays": 0, "weights": {"suspended": 50}}, lambda s: s.horizon_days == 30 and s.weights["suspended"] == 50),
+    ({"asOfMode": "fixed"}, lambda s: s.as_of_mode == "snapshot"),
+    ({"asOfMode": "fixed", "asOfFixed": "9999-01-01T00:00:00Z"}, lambda s: s.as_of_mode == "snapshot"),
+    ({"thresholds": {"high": 20, "medium": 50}, "horizonDays": 14}, lambda s: s.thresholds.high == 60 and s.horizon_days == 14),
+    ({"weights": {"suspended": "x", "prolong_wait": 500, "new_service": True, "gone": 3, "churn_history": 1}},
+     lambda s: s.weights["suspended"] == 10 and s.weights["prolong_wait"] == 45 and s.weights["churn_history"] == 1),
+    ("garbage", lambda s: s == ModelSettings()),
+    (None, lambda s: s == ModelSettings()),
+])
+def test_stored_settings_fall_back_field_by_field(stored, check):
+    from app.risk.store import settings_from_stored
+
+    assert check(settings_from_stored(stored))

@@ -1,5 +1,5 @@
 from app.risk.context import ServiceContext
-from app.risk.fmt import duration, eur
+from app.risk.fmt import ago, eur, in_time
 from app.risk.registry import NO_SIGNAL, FeatureResult, feature
 from app.risk.terms import CHURNED_STATUSES
 
@@ -13,9 +13,10 @@ from app.risk.terms import CHURNED_STATUSES
 def prolong_wait(ctx: ServiceContext) -> FeatureResult:
     if ctx.service.status != "prolong_wait":
         return NO_SIGNAL
-    left = ctx.settings.prolong_wait_grace_days + ctx.days_to_expiry
+    # Срок в будущем при статусе prolong_wait — несогласованные данные: считаем, что он истёк сейчас.
+    left = ctx.settings.prolong_wait_grace_days + min(ctx.days_to_expiry, 0.0)
     if left > 0:
-        return FeatureResult(1.0, f"Ожидает оплаты: без неё будет удалена через {duration(left)}")
+        return FeatureResult(1.0, f"Ожидает оплаты: без неё будет удалена {in_time(left)}")
     return FeatureResult(1.0, "Ожидает оплаты дольше льготного периода: удаление в любой момент")
 
 
@@ -35,7 +36,7 @@ def expiring_no_autoprolong(ctx: ServiceContext) -> FeatureResult:
         return NO_SIGNAL
     return FeatureResult(
         1 - ctx.days_to_expiry / horizon,
-        f"Истекает через {duration(ctx.days_to_expiry)}, автопродление выключено",
+        f"Истекает {in_time(ctx.days_to_expiry)}, автопродление выключено",
     )
 
 
@@ -110,4 +111,4 @@ def new_service(ctx: ServiceContext) -> FeatureResult:
     window = ctx.settings.new_service_days
     if ctx.age_days >= window:
         return NO_SIGNAL
-    return FeatureResult(1 - max(ctx.age_days, 0) / window, f"Подключена {duration(ctx.age_days)} назад")
+    return FeatureResult(1 - max(ctx.age_days, 0) / window, f"Подключена {ago(ctx.age_days)}")

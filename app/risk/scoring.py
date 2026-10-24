@@ -62,11 +62,11 @@ def days_between(later: datetime, earlier: datetime) -> float:
 def renewals_in_horizon(service: ServiceData, days_to_expiry: float, horizon_days: int) -> int:
     """Сколько раз услугу нужно оплатить в ближайшие horizon_days.
 
-    Истёкшая услуга (prolong_wait) должна быть оплачена сразу, дальше по периоду.
+    Услуга в prolong_wait должна быть оплачена сразу, даже если expiresAt в данных почему-то в будущем.
     """
     if service.status not in LIVE_STATUSES:
         return 0
-    first_due = max(days_to_expiry, 0.0)
+    first_due = 0.0 if service.status == "prolong_wait" else max(days_to_expiry, 0.0)
     if first_due > horizon_days:
         return 0
     return 1 + math.floor((horizon_days - first_due) / PERIOD_DAYS[service.payment_term] + 1e-9)
@@ -136,6 +136,8 @@ def score_account(
 ) -> AccountResult:
     features = all_features()
     horizon = settings.horizon_days
+    # Услуги, созданные позже опорной даты, на эту дату ещё не существуют: их не оцениваем и не считаем в деньгах.
+    services = [s for s in services if s.created_at <= as_of]
     live = [s for s in services if s.status in LIVE_STATUSES]
 
     days = {s.id: days_between(s.expires_at, as_of) for s in services}
@@ -143,11 +145,12 @@ def score_account(
     cost = {s.id: s.price * renewals[s.id] for s in services}
     account_cost = sum(cost[s.id] for s in live)
 
-    by_due = sorted(live, key=lambda s: (max(days[s.id], 0.0), s.id))
+    by_due = sorted(live, key=lambda s: (0.0 if s.status == "prolong_wait" else max(days[s.id], 0.0), s.id))
     available = account.balance + account.usable_bonus
     funded = _allocate(available, by_due, cost)
-    # Выручку гарантирует только списание реальных денег, поэтому здесь без бонусов.
-    secured = _allocate(account.balance, [s for s in by_due if s.auto_prolong], cost)
+    # Выручку гарантирует только списание реальных денег, поэтому здесь без бонусов. Услуга в prolong_wait
+    # не гарантирована даже при автопродлении: сам статус означает, что автосписание уже не прошло.
+    secured = _allocate(account.balance, [s for s in by_due if s.auto_prolong and s.status != "prolong_wait"], cost)
 
     results: list[ServiceResult] = []
     for s in services:

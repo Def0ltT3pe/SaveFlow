@@ -97,6 +97,7 @@ class RiskRun(Base):
     computed_at: Mapped[datetime] = mapped_column("computedAt", DateTime(timezone=True))
     as_of: Mapped[datetime] = mapped_column("asOf", DateTime(timezone=True))
     settings_version: Mapped[int] = mapped_column("settingsVersion", Integer)
+    settings: Mapped[dict | None] = mapped_column(JSONB)
     snapshot_id: Mapped[int | None] = mapped_column("snapshotId", BigInteger, ForeignKey("snapshots.id"))
     reason: Mapped[str] = mapped_column(Text)
 
