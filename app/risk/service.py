@@ -114,6 +114,11 @@ def _recalculate(session: Session, reason: str, snapshot_id: int | None = None) 
     return _run_out(run)
 
 
+def _settings_ahead_of_run(session: Session) -> bool:
+    latest = store.latest_run(session)
+    return latest is None or latest.settings_version < store.settings_version(session)
+
+
 def _catch_up(session: Session) -> None:
     """Пересчитать, если настройки новее последнего пересчёта, не дожидаясь чужого пересчёта.
 
@@ -125,10 +130,14 @@ def _catch_up(session: Session) -> None:
             if not store.try_lock(session):
                 session.rollback()
                 return
-            latest = store.latest_run(session)
-            if latest is not None and latest.settings_version >= store.settings_version(session):
+            if not _settings_ahead_of_run(session):
                 session.rollback()
-                return
+                # Пока блокировка была у нас, настройки могли сохранить: тот запрос не взял её
+                # и рассчитывает на нас. Сверяем версии ещё раз уже после её освобождения.
+                if not _settings_ahead_of_run(session):
+                    session.rollback()
+                    return
+                continue
             _recalculate(session, "settings")
             session.commit()
         except Exception:

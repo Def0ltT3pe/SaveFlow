@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 stream_router = APIRouter(prefix="/events", tags=["events"])
 
 POLL_INTERVAL_SECONDS = 1.0
+DB_RETRY_SECONDS = 10.0
 
 
 def current_versions(db: Session) -> Versions:
@@ -42,7 +44,12 @@ async def stream(request: Request) -> StreamingResponse:
     async def events():
         last = None
         while not await request.is_disconnected():
-            now = await run_in_threadpool(_read_versions)
+            try:
+                now = await run_in_threadpool(_read_versions)
+            except OperationalError:
+                yield "event: db_unavailable\ndata: {}\n\n"
+                await asyncio.sleep(DB_RETRY_SECONDS)
+                continue
             if now != last:
                 yield f"event: update\ndata: {now.model_dump_json(by_alias=True)}\n\n"
                 last = now
