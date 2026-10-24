@@ -20,8 +20,8 @@
     "asOfMode": "snapshot",
     "asOfFixed": null
   },
-  "version": 105,
-  "updatedAt": "2026-10-24T13:04:37.737000Z",
+  "version": 2,
+  "updatedAt": "2026-10-24T15:02:44.258000Z",
   "features": [
     {
       "key": "prolong_wait",

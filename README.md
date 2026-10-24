@@ -32,6 +32,8 @@ docker compose down -v   # остановить и удалить данные: 
 
 **Другие данные.** Снимок в формате `data/data.json` загружается на странице «Модель и данные» или запросом `PUT /api/v1/source/snapshot` в Swagger. Он полностью заменяет данные, а оценки пересчитываются сразу. Пример побольше: `demo/demo_day0.json` (200 клиентов).
 
+**Примеры ответов API** лежат в [docs/examples](docs/examples). Если меняются поля ответов, их нужно пересобрать — иначе упадёт тест `tests/test_examples.py`. Скрипт очищает указанную базу, поэтому берите отдельную: `python scripts/make_examples.py postgresql+psycopg://churn:churn@localhost:5432/churn_test`.
+
 **Настройки.** Скопируйте `.env.example` в `.env` рядом с `docker-compose.yml` и раскомментируйте нужное:
 
 | Переменная | По умолчанию | Что делает |

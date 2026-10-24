@@ -38,7 +38,7 @@
       "date": "2026-10-19",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 2,
+      "estimatedDeletions": 0,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
@@ -46,7 +46,7 @@
       "date": "2026-10-20",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 1,
+      "estimatedDeletions": 0,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
@@ -54,15 +54,15 @@
       "date": "2026-10-21",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 4,
+      "estimatedDeletions": 0,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },
     {
       "date": "2026-10-22",
       "kind": "fact",
-      "deletions": 4,
-      "estimatedDeletions": 7,
+      "deletions": 15,
+      "estimatedDeletions": 0,
       "dueServices": 0,
       "expectedNonRenewals": 0.0
     },

@@ -32,7 +32,7 @@ churn_monthly_revenue_eur 1963.53
 churn_expected_monthly_loss_eur 548.65
 # HELP churn_last_recalculation_timestamp_seconds Time of the last model recalculation
 # TYPE churn_last_recalculation_timestamp_seconds gauge
-churn_last_recalculation_timestamp_seconds 1792847077.783
+churn_last_recalculation_timestamp_seconds 1792854166.83
 # HELP churn_model_settings_version Version of model settings used in the last recalculation
 # TYPE churn_model_settings_version gauge
-churn_model_settings_version 105
+churn_model_settings_version 2
