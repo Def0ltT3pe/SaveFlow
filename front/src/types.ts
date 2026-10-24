@@ -82,14 +82,18 @@ export interface CustomerDetail extends CustomerListItem {
 
 // ── Аналитика ───────────────────────────────────────────
 export interface ChurnPoint {
-  date: string; // ISO
-  /** услуг под риском на дату */
-  atRiskServices: number;
-  /** факт: удалённые услуги (для прошлых дат) */
-  deletedServices?: number;
-  /** прогноз: ожидаемые непродления (для будущих дат) */
-  forecastNonRenewals?: number;
+  date: string; // YYYY-MM-DD (UTC)
   isForecast: boolean;
+  /** факт: услуги, перешедшие в deleted между снимками */
+  deletedServices: number;
+  /** факт, но дата оценена: удалённые услуги без истории (дата истечения + льготный период) */
+  estimatedDeletions: number;
+  /** прогноз: все услуги с ближайшим продлением в этот день */
+  dueServices: number;
+  /** прогноз: из них услуги под риском (score не ниже порога среднего риска) */
+  atRiskServices: number;
+  /** прогноз: ожидаемые непродления — сумма вероятностей ухода */
+  forecastNonRenewals: number;
 }
 
 export interface AnalyticsSummary {

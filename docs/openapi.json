@@ -2154,6 +2154,12 @@
             "description": "Прогноз: услуги с ближайшим продлением в этот день",
             "default": 0
           },
+          "dueAtRisk": {
+            "type": "integer",
+            "title": "Dueatrisk",
+            "description": "Прогноз: из них услуги под риском — score не ниже порога medium",
+            "default": 0
+          },
           "expectedNonRenewals": {
             "type": "number",
             "title": "Expectednonrenewals",

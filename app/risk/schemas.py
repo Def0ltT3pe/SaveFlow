@@ -373,6 +373,7 @@ class TimelinePoint(CamelModel):
     deletions: int = Field(0, description="Факт: услуги, перешедшие в deleted между снимками")
     estimated_deletions: int = Field(0, description="Факт (оценка даты): удалённые услуги без истории, дата = expiresAt + льготный период")
     due_services: int = Field(0, description="Прогноз: услуги с ближайшим продлением в этот день")
+    due_at_risk: int = Field(0, description="Прогноз: из них услуги под риском — score не ниже порога medium")
     expected_non_renewals: float = Field(0, description="Прогноз: Σ вероятностей непродления")
 
 

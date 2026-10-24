@@ -89,6 +89,7 @@ export interface BTimeline {
     deletions: number;
     estimatedDeletions: number;
     dueServices: number;
+    dueAtRisk: number;
     expectedNonRenewals: number;
   }[];
 }
@@ -144,8 +145,10 @@ export const toCustomerDetail = (c: BCustomerDetail): CustomerDetail => ({
 const toChurnPoint = (p: BTimeline['points'][number]): ChurnPoint => ({
   date: p.date,
   isForecast: p.kind === 'forecast',
-  atRiskServices: p.dueServices,
-  deletedServices: p.deletions + p.estimatedDeletions,
+  deletedServices: p.deletions,
+  estimatedDeletions: p.estimatedDeletions,
+  dueServices: p.dueServices,
+  atRiskServices: p.dueAtRisk,
   forecastNonRenewals: p.expectedNonRenewals,
 });
 

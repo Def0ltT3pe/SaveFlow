@@ -543,15 +543,18 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
             estimated[day(expires_at + grace)] += 1
 
     due: dict[str, int] = defaultdict(int)
+    due_at_risk: dict[str, int] = defaultdict(int)
     expected: dict[str, float] = defaultdict(float)
-    for days_to_expiry, probability in session.execute(
-        select(ServiceRisk.days_to_expiry, ServiceRisk.probability).where(ServiceRisk.scored)
+    for days_to_expiry, probability, score in session.execute(
+        select(ServiceRisk.days_to_expiry, ServiceRisk.probability, ServiceRisk.score).where(ServiceRisk.scored)
     ):
         offset = max(float(days_to_expiry), 0.0)
         if offset <= settings.horizon_days:
             key = day(as_of + timedelta(days=offset))
             due[key] += 1
             expected[key] += float(probability or 0)
+            if score is not None and float(score) >= settings.thresholds.medium:
+                due_at_risk[key] += 1
 
     points = []
     for i in range(days_back, -1, -1):
@@ -560,6 +563,6 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
                                     estimated_deletions=estimated[key]))
     for i in range(settings.horizon_days + 1):
         key = day(as_of + timedelta(days=i))
-        points.append(TimelinePoint(date=key, kind="forecast", due_services=due[key],
+        points.append(TimelinePoint(date=key, kind="forecast", due_services=due[key], due_at_risk=due_at_risk[key],
                                     expected_non_renewals=round(expected[key], 4)))
     return _json(ChurnTimeline(as_of=as_of if run else None, horizon_days=settings.horizon_days, points=points))
