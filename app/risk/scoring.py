@@ -265,10 +265,9 @@ def score_account(
         reasons = _account_reasons(scored)
     else:
         score, reasons = None, [_no_score_reason(services)]
-    # Деньги считаются по вероятности ухода клиента: уходя, он уходит со всеми услугами.
-    # Так ожидаемая потеря = score клиента / 100 × сумма под угрозой, как и написано в объяснении.
-    p = (score or 0) / 100
-
+    # Деньги считаются по вероятности непродления каждой услуги (score услуги / 100), а не клиента целиком:
+    # иначе одна горящая услуга у клиента с сотней услуг умножалась бы на продления их всех.
+    # Признаки клиента (нехватка денег, история уходов) входят в score каждой его услуги.
     results: list[ServiceResult] = []
     scores = {s.id: (sc, contribs) for s, sc, contribs in scored}
     for s in services:
@@ -278,8 +277,9 @@ def score_account(
             continue
         service_score, contributions = scores[s.id]
         at_risk = cost[s.id] - secured.get(s.id, 0) - by_bonus.get(s.id, 0)
+        p = service_score / 100
         results.append(ServiceResult(
-            s, True, service_score, round(service_score / 100, 4), contributions, days[s.id], renewals[s.id], mp,
+            s, True, service_score, round(p, 4), contributions, days[s.id], renewals[s.id], mp,
             cost[s.id], secured.get(s.id, 0), by_bonus.get(s.id, 0), at_risk, p * at_risk, p * mp,
         ))
 

@@ -135,7 +135,7 @@
       "clientsAtRisk": 26,
       "expectedChurnedClients": 16.8258,
       "revenueAtRisk": 9824.0,
-      "expectedLoss": 7097.75
+      "expectedLoss": 7080.17
     },
     {
       "date": "2026-10-23",
@@ -150,7 +150,7 @@
       "clientsAtRisk": 3,
       "expectedChurnedClients": 1.3325,
       "revenueAtRisk": 3378.0,
-      "expectedLoss": 1340.64
+      "expectedLoss": 1277.87
     },
     {
       "date": "2026-10-24",
@@ -165,7 +165,7 @@
       "clientsAtRisk": 1,
       "expectedChurnedClients": 0.4839,
       "revenueAtRisk": 1702.0,
-      "expectedLoss": 925.35
+      "expectedLoss": 740.02
     },
     {
       "date": "2026-10-25",
@@ -180,7 +180,7 @@
       "clientsAtRisk": 1,
       "expectedChurnedClients": 0.3334,
       "revenueAtRisk": 818.0,
-      "expectedLoss": 497.28
+      "expectedLoss": 441.92
     }
   ]
 }

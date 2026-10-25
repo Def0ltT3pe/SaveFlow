@@ -28,6 +28,11 @@ def points(result, feature):
     return {c.feature: c.points for r in result.services for c in r.contributions}.get(feature, 0)
 
 
+def loss_by_services(result):
+    """Ожидаемая потеря как в объяснении на панели: Σ score услуги / 100 × её сумма под угрозой."""
+    return sum(s.score / 100 * s.at_risk for s in result.services if s.scored)
+
+
 def test_safe_customer_has_low_risk():
     r = score([service(auto=True)], account(balance=10_000))
     assert r.score == 0 and r.level == "low"
@@ -61,8 +66,8 @@ def test_money_uses_balance_only_for_autoprolong():
     # Автопродление не оплачивает продление частично: 3 € на балансе не покрывают продление за 5 €
     assert by_id[1].secured_by_balance == 0 and by_id[1].at_risk == 500
     assert by_id[2].secured_by_balance == 0 and by_id[2].at_risk == 200
-    # Деньги — по вероятности ухода клиента, как в объяснении на панели
-    assert r.expected_loss == pytest.approx(r.score / 100 * r.at_risk, abs=0.01)
+    # Деньги — по вероятности непродления каждой услуги, как в объяснении на панели
+    assert r.expected_loss == pytest.approx(loss_by_services(r), abs=0.01)
 
 
 def test_unlocked_bonus_pays_renewal_and_is_not_at_risk():
@@ -185,8 +190,43 @@ def test_expected_loss_matches_explanation_formula():
     services = [service(1, price=900, expires_in_days=3, auto=False),
                 service(2, status="prolong_wait", price=200, expires_in_days=-1)]
     r = score(services, account(balance=100))
-    assert r.expected_loss == pytest.approx(r.score / 100 * r.at_risk, abs=0.01)
-    assert r.expected_monthly_loss == pytest.approx(r.score / 100 * r.monthly_revenue, abs=0.01)
+    assert r.expected_loss == pytest.approx(loss_by_services(r), abs=0.01)
+    assert r.expected_monthly_loss == pytest.approx(sum(s.score / 100 * s.monthly_price for s in r.services), abs=0.01)
+
+
+def test_single_service_loss_is_client_score_times_at_risk():
+    # У клиента с одной услугой score услуги и клиента совпадают — как раньше
+    r = score([service(price=1000, auto=False, expires_in_days=6)], account(balance=300))
+    assert (r.score, r.at_risk, r.expected_loss) == (55.5, 1000, pytest.approx(555))
+
+
+# Клиент с 200 услугами по 10 €; одна из них ждёт оплаты (score 45)
+HEALTHY = [service(i, price=1000, auto=True, expires_in_days=10 + i % 15) for i in range(1, 200)]
+MANUAL = [service(i, price=1000, auto=False, expires_in_days=25) for i in range(1, 200)]   # score 5 у каждой
+WAITING = service(200, status="prolong_wait", price=500, expires_in_days=-1)
+
+
+def test_one_burning_service_of_200_does_not_multiply_onto_the_rest():
+    r = score(MANUAL + [WAITING], account(balance=10_000_000))
+    assert (r.score, r.level) == (45, "medium")                 # приоритет — по худшей услуге, как раньше
+    assert r.at_risk == 199 * 1000 + 500
+    # 0,45 × 5 € + 199 × 0,05 × 10 € = 101,75 €, а не 0,45 × 1 995 € = 897,75 €
+    assert r.expected_loss == pytest.approx(0.45 * 500 + 199 * 0.05 * 1000)
+
+
+def test_one_burning_service_among_paid_up_ones():
+    r = score(HEALTHY + [WAITING], account(balance=10_000_000))
+    assert (r.score, r.level, r.at_risk) == (45, "medium", 500)
+    assert r.expected_loss == pytest.approx(0.45 * 500)
+
+
+def test_client_wide_risk_reaches_every_service():
+    # Денег на счёте нет: «Не хватает средств» входит в score каждой услуги, и в деньгах это видно по всем
+    poor = score([service(i, price=1000, auto=True, expires_in_days=5 + i) for i in range(1, 6)], account(balance=0))
+    assert all(any(c.feature == "insufficient_funds" for c in s.contributions) for s in poor.services)
+    assert poor.at_risk == 5000
+    # сроки через 6–10 дней: 31,5 … 29,17 балла у услуг — около 30 % всех продлений
+    assert poor.expected_loss == pytest.approx(loss_by_services(poor)) == pytest.approx(1516.7, abs=0.5)
 
 
 def test_money_running_out_alone_gives_medium_risk():
@@ -449,7 +489,7 @@ def test_monthly_revenue_and_loss_count_only_live_services():
     assert by_id[1].monthly_price == 500 and by_id[2].monthly_price == pytest.approx(730.5)
     assert r.monthly_revenue == pytest.approx(1230.5)  # удалённая услуга в выручку не входит
     assert by_id[3].expected_monthly_loss == 0
-    assert r.expected_monthly_loss == pytest.approx(r.score / 100 * 1230.5, abs=0.01)
+    assert r.expected_monthly_loss == pytest.approx(by_id[1].score / 100 * 500 + by_id[2].score / 100 * 730.5, abs=0.01)
     assert r.expected_monthly_loss == pytest.approx(sum(s.expected_monthly_loss for s in r.services), abs=0.01)
 
 

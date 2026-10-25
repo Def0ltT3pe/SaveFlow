@@ -136,8 +136,8 @@
         "securedByBalance": 0.0,
         "coveredByBonus": 0.0,
         "atRisk": 2403.0,
-        "expectedLoss": 2132.66,
-        "expectedMonthlyLoss": 1163.06
+        "expectedLoss": 1807.56,
+        "expectedMonthlyLoss": 1033.91
       }
     },
     {
@@ -224,8 +224,8 @@
         "securedByBalance": 0.0,
         "coveredByBonus": 0.0,
         "atRisk": 1671.0,
-        "expectedLoss": 1462.12,
-        "expectedMonthlyLoss": 1323.54
+        "expectedLoss": 1396.28,
+        "expectedMonthlyLoss": 1257.69
       }
     }
   ],

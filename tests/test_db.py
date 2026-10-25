@@ -277,7 +277,9 @@ def test_summary_explanation_matches_calculation(session, loaded):
     summary = service.get_summary(session)
     m = summary["money"]
     customers = service.get_customers(session, limit=500)["items"]
-    by_formula = sum((c["score"] or 0) / 100 * c["money"]["atRisk"] for c in customers)
+    # Как в объяснении: по каждой услуге вероятность непродления × её сумма под угрозой
+    by_formula = sum(s["probability"] * s["atRisk"] for c in customers
+                     for s in service.get_customer(session, c["id"])["services"] if s["scored"])
     assert m["expectedLoss"] == pytest.approx(by_formula, abs=0.05 * len(customers))
     assert m["horizonRevenue"] == pytest.approx(m["securedByBalance"] + m["coveredByBonus"] + m["atRisk"], abs=0.05)
     for value in (m["expectedLoss"], m["horizonRevenue"], m["securedByBalance"], m["coveredByBonus"], m["atRisk"]):

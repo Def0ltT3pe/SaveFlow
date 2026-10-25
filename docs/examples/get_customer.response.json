@@ -73,11 +73,11 @@
     "securedByBalance": 0.0,
     "coveredByBonus": 0.0,
     "atRisk": 2403.0,
-    "expectedLoss": 2132.66,
-    "expectedMonthlyLoss": 1163.06
+    "expectedLoss": 1807.56,
+    "expectedMonthlyLoss": 1033.91
   },
   "asOf": "2026-10-22T15:00:00Z",
-  "computedAt": "2026-10-24T15:02:46.830000Z",
+  "computedAt": "2026-10-25T05:32:03.104000Z",
   "services": [
     {
       "id": 393,
@@ -98,8 +98,8 @@
       "securedByBalance": 0.0,
       "coveredByBonus": 0.0,
       "atRisk": 950.0,
-      "expectedLoss": 843.12,
-      "expectedMonthlyLoss": 733.22,
+      "expectedLoss": 804.37,
+      "expectedMonthlyLoss": 699.51,
       "contributions": [
         {
           "feature": "prolong_wait",
@@ -160,8 +160,8 @@
       "securedByBalance": 0.0,
       "coveredByBonus": 0.0,
       "atRisk": 805.0,
-      "expectedLoss": 714.44,
-      "expectedMonthlyLoss": 238.15,
+      "expectedLoss": 428.1,
+      "expectedMonthlyLoss": 142.7,
       "contributions": [
         {
           "feature": "insufficient_funds",

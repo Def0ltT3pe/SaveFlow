@@ -259,8 +259,8 @@ class Money(CamelModel):
     secured_by_balance: float = Field(description="Часть horizon_revenue, которую автопродление спишет с основного баланса")
     covered_by_bonus: float = Field(0, description="Часть horizon_revenue, которую автопродление оплатит доступными бонусами")
     at_risk: float = Field(description="horizon_revenue − secured_by_balance − covered_by_bonus")
-    expected_loss: float = Field(description="вероятность ухода клиента (score / 100) × at_risk")
-    expected_monthly_loss: float = Field(description="вероятность ухода клиента × месячная цена")
+    expected_loss: float = Field(description="Σ по услугам: вероятность непродления услуги (её score / 100) × её at_risk")
+    expected_monthly_loss: float = Field(description="Σ по услугам: вероятность непродления услуги × её месячная цена")
 
 
 class TxStatsOut(CamelModel):

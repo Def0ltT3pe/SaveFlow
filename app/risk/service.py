@@ -438,9 +438,9 @@ def _summary(session: Session) -> RiskSummary:
                   expected_loss=_float(loss), expected_monthly_loss=_float(monthly_loss))
     h = settings.horizon_days
     explanation = (
-        f"Ожидаемая потеря за {h} дн.: {eur(money.expected_loss)}. По каждому клиенту: вероятность его ухода "
-        f"(score / 100) × сумма под угрозой — продления за ближайшие {h} дн., которые автопродление не спишет "
-        f"ни с баланса, ни с бонусов. Всего продлений на {eur(money.horizon_revenue)}: "
+        f"Ожидаемая потеря за {h} дн.: {eur(money.expected_loss)}. По каждой услуге: вероятность, что её не продлят "
+        f"(score услуги / 100), × её сумма под угрозой — продления за ближайшие {h} дн., которые автопродление "
+        f"не спишет ни с баланса, ни с бонусов. Всего продлений на {eur(money.horizon_revenue)}: "
         f"{eur(money.secured_by_balance)} спишется с балансов, {eur(money.covered_by_bonus)} оплатят бонусы, "
         f"под угрозой {eur(money.at_risk)}. Ежемесячная выручка {eur(money.monthly_revenue)}, "
         f"ожидаемая потеря в месяц {eur(money.expected_monthly_loss)}."
@@ -508,17 +508,18 @@ def _unpaid_renewals(session: Session, as_of: datetime, horizon_days: int, day) 
     """Продления в горизонте, не покрытые деньгами на счёте, по дням: сумма под угрозой и ожидаемые потери.
 
     Деньги оплачивают продления по порядку наступления (scoring._paid_renewals), поэтому непокрытые — последние
-    renewals − paid продлений услуги. Потеря продления = вероятность ухода клиента × цена: в сумме по дням это
-    expectedLoss услуги. Третье значение — для каждого клиента день первого непокрытого продления (тогда он
+    renewals − paid продлений услуги. Потеря продления = вероятность непродления услуги × цена: в сумме по дням
+    это expectedLoss услуги. Третье значение — для каждого клиента день первого непокрытого продления (тогда он
     либо платит, либо уходит), его вероятность ухода и уровень риска.
     """
     at_risk: dict[str, float] = defaultdict(float)
     loss: dict[str, float] = defaultdict(float)
     first: dict[int, tuple[float, float, str]] = {}
-    for account_id, days_to_expiry, renewals, secured, bonus, price, term, status, score, level in session.execute(
+    for (account_id, days_to_expiry, renewals, secured, bonus, service_probability, price, term, status,
+         score, level) in session.execute(
         select(ServiceRisk.account_id, ServiceRisk.days_to_expiry, ServiceRisk.renewals_in_horizon,
-               ServiceRisk.secured_by_balance, ServiceRisk.covered_by_bonus, Service.price, Service.payment_term,
-               Service.status, AccountRisk.score, AccountRisk.level)
+               ServiceRisk.secured_by_balance, ServiceRisk.covered_by_bonus, ServiceRisk.probability,
+               Service.price, Service.payment_term, Service.status, AccountRisk.score, AccountRisk.level)
         .join(Service, Service.id == ServiceRisk.service_id)
         .join(AccountRisk, AccountRisk.account_id == ServiceRisk.account_id)
         .where(ServiceRisk.scored)
@@ -530,7 +531,7 @@ def _unpaid_renewals(session: Session, as_of: datetime, horizon_days: int, day) 
             offset = min(first_due + k * PERIOD_DAYS[term], float(horizon_days))
             key = day(as_of + timedelta(days=offset))
             at_risk[key] += price
-            loss[key] += probability * price
+            loss[key] += float(service_probability or 0) * price
             if account_id not in first or offset < first[account_id][0]:
                 first[account_id] = (offset, probability, level)
     first_unpaid = [(day(as_of + timedelta(days=offset)), p, level) for offset, p, level in first.values()]

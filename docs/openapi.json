@@ -1543,12 +1543,12 @@
           "expectedLoss": {
             "type": "number",
             "title": "Expectedloss",
-            "description": "вероятность ухода клиента (score / 100) × at_risk"
+            "description": "Σ по услугам: вероятность непродления услуги (её score / 100) × её at_risk"
           },
           "expectedMonthlyLoss": {
             "type": "number",
             "title": "Expectedmonthlyloss",
-            "description": "вероятность ухода клиента × месячная цена"
+            "description": "Σ по услугам: вероятность непродления услуги × её месячная цена"
           }
         },
         "type": "object",

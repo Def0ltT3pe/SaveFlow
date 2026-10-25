@@ -142,8 +142,9 @@ def test_fact_counts_transition_on_snapshot_date_and_ignores_returned_services(s
 
 
 def _unpaid(timeline, customers):
-    """Непокрытые деньгами продления каждого клиента: (день, цена). Деньги платят продления по порядку, поэтому
-    непокрытые — последние renewalsInHorizon − (securedByBalance + coveredByBonus) / price."""
+    """Непокрытые деньгами продления каждого клиента: (смещение, день, цена, вероятность непродления услуги).
+    Деньги платят продления по порядку, поэтому непокрытые — последние
+    renewalsInHorizon − (securedByBalance + coveredByBonus) / price."""
     as_of, horizon = timeline["asOf"], timeline["horizonDays"]
     unpaid = defaultdict(list)
     for c in customers:
@@ -154,7 +155,7 @@ def _unpaid(timeline, customers):
             first = 0 if x["status"] == "prolong_wait" else max(x["daysToExpiry"], 0)
             for k in range(paid, x["renewalsInHorizon"]):
                 offset = min(first + k * PERIOD_DAYS[x["paymentTerm"]], horizon)
-                unpaid[c["id"]].append((offset, _day(as_of, offset), x["price"]))
+                unpaid[c["id"]].append((offset, _day(as_of, offset), x["price"], x["probability"]))
     return unpaid
 
 
@@ -163,9 +164,9 @@ def test_forecast_money_by_day_adds_up_to_summary(session, loaded):
     customers = _customers(session)
     at_risk, loss = defaultdict(float), defaultdict(float)
     for c in customers:
-        for _, day, price in _unpaid(timeline, customers)[c["id"]]:
+        for _, day, price, probability in _unpaid(timeline, customers)[c["id"]]:
             at_risk[day] += price
-            loss[day] += c["score"] / 100 * price
+            loss[day] += probability * price   # потеря — по вероятности непродления самой услуги
     forecast = {p["date"]: p for p in timeline["points"] if p["kind"] == "forecast"}
     for day, point in forecast.items():
         assert point["revenueAtRisk"] == pytest.approx(at_risk[day], abs=0.01), day
@@ -185,7 +186,7 @@ def test_forecast_puts_each_client_on_first_unpaid_renewal(session, loaded):
     at_risk, expected = Counter(), defaultdict(float)
     for c in customers:
         if unpaid[c["id"]]:
-            _, day, _ = min(unpaid[c["id"]])
+            _, day, _, _ = min(unpaid[c["id"]])
             expected[day] += c["score"] / 100
             at_risk[day] += c["level"] in ("medium", "high")
     forecast = [p for p in timeline["points"] if p["kind"] == "forecast"]
