@@ -1,8 +1,8 @@
 """Аутентификация.
 
 Login выдаёт случайный токен; сессии хранятся в Postgres (app/db/auth_sessions.py), поэтому вход
-переживает перезапуск бэкенда и работает с несколькими воркерами. В БД лежит только хеш токена.
-TODO: JWT (HS256) + token_version пользователя, пароли через bcrypt/argon2.
+переживает перезапуск бэкенда и работает с несколькими воркерами. В БД лежит только хеш токена,
+а выход отзывает сессию сразу.
 """
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer

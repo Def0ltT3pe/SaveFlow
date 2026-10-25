@@ -10,7 +10,7 @@ const COLUMNS: { field: CustomerSortField; label: string; numeric?: boolean }[] 
   { field: 'email', label: 'Email' },
   { field: 'balance', label: 'Баланс', numeric: true },
   { field: 'totalReplenished', label: 'Пополнено всего', numeric: true },
-  { field: 'score', label: 'Риск (isk-score)' },
+  { field: 'score', label: 'Риск (risk-score)' },
 ];
 
 export default function CustomersPage() {
