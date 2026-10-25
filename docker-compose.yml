@@ -26,12 +26,12 @@ services:
       DEMO_USER: ${DEMO_USER:-admin}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-admin}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
-      # Вход через OIDC (Keycloak ниже). Браузер ходит к Keycloak по localhost, бэкенд — по имени контейнера
-      OIDC_ISSUER: http://localhost:${KEYCLOAK_PORT:-8180}/realms/saveflow
+      # Вход через OIDC (Keycloak ниже). Браузер ходит к Keycloak по адресу сервера (PUBLIC_HOST), бэкенд — по имени контейнера
+      OIDC_ISSUER: http://${PUBLIC_HOST:-localhost}:${KEYCLOAK_PORT:-8180}/realms/saveflow
       OIDC_INTERNAL_ISSUER: http://keycloak:8080/realms/saveflow
       OIDC_CLIENT_ID: saveflow-panel
-      OIDC_REDIRECT_URI: http://localhost:${APP_PORT:-8080}/api/v1/auth/oidc/callback
-      OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:${APP_PORT:-8080}/login
+      OIDC_REDIRECT_URI: http://${PUBLIC_HOST:-localhost}:${APP_PORT:-8080}/api/v1/auth/oidc/callback
+      OIDC_POST_LOGOUT_REDIRECT_URI: http://${PUBLIC_HOST:-localhost}:${APP_PORT:-8080}/login
       OIDC_REQUIRED_ROLE: analyst
       OIDC_NAME: Keycloak
     depends_on:
@@ -55,8 +55,9 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
-      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HOSTNAME: http://${PUBLIC_HOST:-localhost}:${KEYCLOAK_PORT:-8180}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"   # токены и ключи бэкенд берёт по http://keycloak:8080
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}    # realm разрешает возврат в панель на этот адрес
     volumes:
       - ./docker/keycloak/saveflow-realm.json:/opt/keycloak/data/import/saveflow-realm.json:ro
       - ./docker/keycloak/themes/saveflow:/opt/keycloak/themes/saveflow:ro   # страница входа в стиле SaveFlow
