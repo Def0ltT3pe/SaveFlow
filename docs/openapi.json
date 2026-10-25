@@ -2242,7 +2242,7 @@
           "expectedLoss": {
             "type": "number",
             "title": "Expectedloss",
-            "description": "Прогноз: ожидаемые потери этого дня = вероятность ухода клиента × revenueAtRisk; сумма по горизонту = money.expectedLoss сводки",
+            "description": "Прогноз: ожидаемые потери этого дня = Σ по непокрытым продлениям вероятность непродления услуги × цена; сумма по горизонту = money.expectedLoss сводки",
             "default": 0
           }
         },

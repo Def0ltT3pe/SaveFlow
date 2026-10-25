@@ -384,8 +384,9 @@ class TimelinePoint(CamelModel):
     expected_churned_clients: float = Field(0, description="Прогноз: Σ вероятностей ухода клиентов с первым непокрытым "
                                                            "продлением в этот день")
     revenue_at_risk: float = Field(0, description="Прогноз: стоимость продлений этого дня, не покрытых деньгами, евроценты")
-    expected_loss: float = Field(0, description="Прогноз: ожидаемые потери этого дня = вероятность ухода клиента × "
-                                                "revenueAtRisk; сумма по горизонту = money.expectedLoss сводки")
+    expected_loss: float = Field(0, description="Прогноз: ожидаемые потери этого дня = Σ по непокрытым продлениям "
+                                                "вероятность непродления услуги × цена; сумма по горизонту = "
+                                                "money.expectedLoss сводки")
 
 
 class ChurnTimeline(CamelModel):
