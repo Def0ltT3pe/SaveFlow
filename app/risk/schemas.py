@@ -377,6 +377,15 @@ class TimelinePoint(CamelModel):
     due_services: int = Field(0, description="Прогноз: услуги с ближайшим продлением в этот день")
     due_at_risk: int = Field(0, description="Прогноз: из них услуги под риском — score не ниже порога medium")
     expected_non_renewals: float = Field(0, description="Прогноз: Σ вероятностей непродления")
+    churned_clients: int = Field(0, description="Факт: клиенты, у которых в этот день удалили услугу (включая оценённые даты)")
+    lost_revenue: float = Field(0, description="Факт: стоимость продлений удалённых в этот день услуг, евроценты")
+    clients_at_risk: int = Field(0, description="Прогноз: клиенты с уровнем medium/high, у которых в этот день первое "
+                                                "продление, не покрытое деньгами на счёте")
+    expected_churned_clients: float = Field(0, description="Прогноз: Σ вероятностей ухода клиентов с первым непокрытым "
+                                                           "продлением в этот день")
+    revenue_at_risk: float = Field(0, description="Прогноз: стоимость продлений этого дня, не покрытых деньгами, евроценты")
+    expected_loss: float = Field(0, description="Прогноз: ожидаемые потери этого дня = вероятность ухода клиента × "
+                                                "revenueAtRisk; сумма по горизонту = money.expectedLoss сводки")
 
 
 class ChurnTimeline(CamelModel):

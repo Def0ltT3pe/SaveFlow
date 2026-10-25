@@ -2208,6 +2208,42 @@
             "title": "Expectednonrenewals",
             "description": "Прогноз: Σ вероятностей непродления",
             "default": 0
+          },
+          "churnedClients": {
+            "type": "integer",
+            "title": "Churnedclients",
+            "description": "Факт: клиенты, у которых в этот день удалили услугу (включая оценённые даты)",
+            "default": 0
+          },
+          "lostRevenue": {
+            "type": "number",
+            "title": "Lostrevenue",
+            "description": "Факт: стоимость продлений удалённых в этот день услуг, евроценты",
+            "default": 0
+          },
+          "clientsAtRisk": {
+            "type": "integer",
+            "title": "Clientsatrisk",
+            "description": "Прогноз: клиенты с уровнем medium/high, у которых в этот день первое продление, не покрытое деньгами на счёте",
+            "default": 0
+          },
+          "expectedChurnedClients": {
+            "type": "number",
+            "title": "Expectedchurnedclients",
+            "description": "Прогноз: Σ вероятностей ухода клиентов с первым непокрытым продлением в этот день",
+            "default": 0
+          },
+          "revenueAtRisk": {
+            "type": "number",
+            "title": "Revenueatrisk",
+            "description": "Прогноз: стоимость продлений этого дня, не покрытых деньгами, евроценты",
+            "default": 0
+          },
+          "expectedLoss": {
+            "type": "number",
+            "title": "Expectedloss",
+            "description": "Прогноз: ожидаемые потери этого дня = вероятность ухода клиента × revenueAtRisk; сумма по горизонту = money.expectedLoss сводки",
+            "default": 0
           }
         },
         "type": "object",

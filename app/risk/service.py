@@ -38,6 +38,7 @@ from app.risk.schemas import (
     TxStatsOut,
 )
 from app.risk.scoring import score_portfolio
+from app.risk.terms import PERIOD_DAYS
 
 SORT_COLUMNS = {
     "id": Account.id,
@@ -502,6 +503,40 @@ def render_metrics(session: Session) -> str:
 
 
 @_releases_connection
+def _unpaid_renewals(session: Session, as_of: datetime, horizon_days: int, day) -> tuple[
+        dict[str, float], dict[str, float], list[tuple[str, float, str]]]:
+    """Продления в горизонте, не покрытые деньгами на счёте, по дням: сумма под угрозой и ожидаемые потери.
+
+    Деньги оплачивают продления по порядку наступления (scoring._paid_renewals), поэтому непокрытые — последние
+    renewals − paid продлений услуги. Потеря продления = вероятность ухода клиента × цена: в сумме по дням это
+    expectedLoss услуги. Третье значение — для каждого клиента день первого непокрытого продления (тогда он
+    либо платит, либо уходит), его вероятность ухода и уровень риска.
+    """
+    at_risk: dict[str, float] = defaultdict(float)
+    loss: dict[str, float] = defaultdict(float)
+    first: dict[int, tuple[float, float, str]] = {}
+    for account_id, days_to_expiry, renewals, secured, bonus, price, term, status, score, level in session.execute(
+        select(ServiceRisk.account_id, ServiceRisk.days_to_expiry, ServiceRisk.renewals_in_horizon,
+               ServiceRisk.secured_by_balance, ServiceRisk.covered_by_bonus, Service.price, Service.payment_term,
+               Service.status, AccountRisk.score, AccountRisk.level)
+        .join(Service, Service.id == ServiceRisk.service_id)
+        .join(AccountRisk, AccountRisk.account_id == ServiceRisk.account_id)
+        .where(ServiceRisk.scored)
+    ):
+        probability = float(score or 0) / 100
+        paid = round((float(secured) + float(bonus)) / price) if price else renewals
+        first_due = 0.0 if status == "prolong_wait" else max(float(days_to_expiry), 0.0)
+        for k in range(min(paid, renewals), renewals):
+            offset = min(first_due + k * PERIOD_DAYS[term], float(horizon_days))
+            key = day(as_of + timedelta(days=offset))
+            at_risk[key] += price
+            loss[key] += probability * price
+            if account_id not in first or offset < first[account_id][0]:
+                first[account_id] = (offset, probability, level)
+    first_unpaid = [(day(as_of + timedelta(days=offset)), p, level) for offset, p, level in first.values()]
+    return at_risk, loss, first_unpaid
+
+
 def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
     """Факт удалений за days_back дней до опорной даты и прогноз непродлений на горизонт.
 
@@ -521,26 +556,37 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
 
     # Одна услуга — одно удаление: берётся последний переход в deleted. Если снимки загружали
     # не по порядку (deleted → active → deleted), удаление не считается дважды; вернувшаяся услуга не считается.
-    deleted_at: dict[int, datetime | None] = {}
-    for sid, old_status, new_status, changed_at in session.execute(
-        select(ServiceStatusChange.service_id, ServiceStatusChange.old_status,
-               ServiceStatusChange.new_status, ServiceStatusChange.changed_at)
+    deleted_at: dict[int, tuple[datetime, int, int] | None] = {}
+    for sid, old_status, new_status, changed_at, owner_id, price in session.execute(
+        select(ServiceStatusChange.service_id, ServiceStatusChange.old_status, ServiceStatusChange.new_status,
+               ServiceStatusChange.changed_at, ServiceStatusChange.owner_id, ServiceStatusChange.price)
         .order_by(ServiceStatusChange.snapshot_id, ServiceStatusChange.id)
     ):
         if new_status == "deleted" and old_status is not None:
-            deleted_at[sid] = changed_at
+            deleted_at[sid] = (changed_at, owner_id, price)
         elif new_status is not None and new_status != "deleted" and sid in deleted_at:
             deleted_at[sid] = None
     transitioned = set(deleted_at)
     deletions: dict[str, int] = defaultdict(int)
-    for changed_at in deleted_at.values():
-        if changed_at is not None and start <= changed_at <= as_of:
-            deletions[day(changed_at)] += 1
+    # Клиенты и деньги факта: и по точным датам, и по оценённым. Деньги — одно неоплаченное продление услуги.
+    churned: dict[str, set[int]] = defaultdict(set)
+    lost: dict[str, float] = defaultdict(float)
+    for deleted in deleted_at.values():
+        if deleted is not None and start <= deleted[0] <= as_of:
+            key = day(deleted[0])
+            deletions[key] += 1
+            churned[key].add(deleted[1])
+            lost[key] += deleted[2]
 
     estimated: dict[str, int] = defaultdict(int)
-    for sid, expires_at in session.execute(select(Service.id, Service.expires_at).where(Service.status == "deleted")):
+    for sid, expires_at, owner_id, price in session.execute(
+        select(Service.id, Service.expires_at, Service.owner_id, Service.price).where(Service.status == "deleted")
+    ):
         if sid not in transitioned and start <= expires_at + grace <= as_of:
-            estimated[day(expires_at + grace)] += 1
+            key = day(expires_at + grace)
+            estimated[key] += 1
+            churned[key].add(owner_id)
+            lost[key] += price
 
     due: dict[str, int] = defaultdict(int)
     due_at_risk: dict[str, int] = defaultdict(int)
@@ -556,13 +602,25 @@ def get_churn_timeline(session: Session, days_back: int = 30) -> dict:
             if score is not None and float(score) >= settings.thresholds.medium:
                 due_at_risk[key] += 1
 
+    revenue_at_risk, loss, first_unpaid = _unpaid_renewals(session, as_of, settings.horizon_days, day)
+    clients_at_risk: dict[str, int] = defaultdict(int)
+    expected_clients: dict[str, float] = defaultdict(float)
+    for key, probability, level in first_unpaid:
+        expected_clients[key] += probability
+        if level in ("medium", "high"):
+            clients_at_risk[key] += 1
+
     points = []
     for i in range(days_back, -1, -1):
         key = day(as_of - timedelta(days=i))
         points.append(TimelinePoint(date=key, kind="fact", deletions=deletions[key],
-                                    estimated_deletions=estimated[key]))
+                                    estimated_deletions=estimated[key], churned_clients=len(churned[key]),
+                                    lost_revenue=round(lost[key], 2)))
     for i in range(settings.horizon_days + 1):
         key = day(as_of + timedelta(days=i))
         points.append(TimelinePoint(date=key, kind="forecast", due_services=due[key], due_at_risk=due_at_risk[key],
-                                    expected_non_renewals=round(expected[key], 4)))
+                                    expected_non_renewals=round(expected[key], 4),
+                                    clients_at_risk=clients_at_risk[key],
+                                    expected_churned_clients=round(expected_clients[key], 4),
+                                    revenue_at_risk=round(revenue_at_risk[key], 2), expected_loss=round(loss[key], 2)))
     return _json(ChurnTimeline(as_of=as_of if run else None, horizon_days=settings.horizon_days, points=points))

@@ -94,6 +94,18 @@ export interface ChurnPoint {
   atRiskServices: number;
   /** прогноз: ожидаемые непродления — сумма вероятностей ухода */
   forecastNonRenewals: number;
+  /** факт: клиенты, у которых в этот день удалили услугу */
+  churnedClients: number;
+  /** факт: стоимость продлений удалённых услуг */
+  lostRevenue: Cents;
+  /** прогноз: клиенты среднего и высокого риска, у которых в этот день первое продление без денег на счёте */
+  clientsAtRisk: number;
+  /** прогноз: сколько клиентов уйдёт в этот день по оценке модели (сумма вероятностей) */
+  expectedChurnedClients: number;
+  /** прогноз: стоимость продлений этого дня, не покрытых деньгами */
+  revenueAtRisk: Cents;
+  /** прогноз: ожидаемые потери этого дня; сумма по дням — «Ожидаемые потери» сводки */
+  expectedLoss: Cents;
 }
 
 export interface AnalyticsSummary {

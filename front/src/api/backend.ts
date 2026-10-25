@@ -92,6 +92,12 @@ export interface BTimeline {
     dueServices: number;
     dueAtRisk: number;
     expectedNonRenewals: number;
+    churnedClients: number;
+    lostRevenue: number;
+    clientsAtRisk: number;
+    expectedChurnedClients: number;
+    revenueAtRisk: number;
+    expectedLoss: number;
   }[];
 }
 
@@ -152,6 +158,12 @@ const toChurnPoint = (p: BTimeline['points'][number]): ChurnPoint => ({
   dueServices: p.dueServices,
   atRiskServices: p.dueAtRisk,
   forecastNonRenewals: p.expectedNonRenewals,
+  churnedClients: p.churnedClients,
+  lostRevenue: p.lostRevenue,
+  clientsAtRisk: p.clientsAtRisk,
+  expectedChurnedClients: p.expectedChurnedClients,
+  revenueAtRisk: p.revenueAtRisk,
+  expectedLoss: p.expectedLoss,
 });
 
 export const toSummary = (s: BSummary, t: BTimeline): AnalyticsSummary => ({

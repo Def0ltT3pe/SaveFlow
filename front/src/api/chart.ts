@@ -1,13 +1,29 @@
-import type { ChurnPoint } from '../types';
+import type { Cents, ChurnPoint } from '../types';
 
-/** Строка графика оттока: факт заполнен для прошлых дней, прогноз — для будущих, опорный день — оба. */
+/**
+ * Строка графика оттока: факт заполнен для прошлых дней, прогноз — для будущих, опорный день — оба.
+ * На графике клиенты (столбики) и деньги (линии); услуги — в подсказке.
+ */
 export interface ChartRow {
   date: string;
+  // факт
+  lostClients: number | null;
+  lostRevenue: Cents | null;
   deleted: number | null;
   estimated: number | null;
-  atRisk: number | null;
-  forecast: number | null;
+  // прогноз
+  riskClients: number | null;
+  expectedClients: number | null;
+  revenueAtRisk: Cents | null;
+  expectedLoss: Cents | null;
+  dueServices: number | null;
+  atRiskServices: number | null;
 }
+
+const emptyRow = (date: string): ChartRow => ({
+  date, lostClients: null, lostRevenue: null, deleted: null, estimated: null,
+  riskClients: null, expectedClients: null, revenueAtRisk: null, expectedLoss: null, dueServices: null, atRiskServices: null,
+});
 
 /**
  * Точки бэкенда → строки графика, по одной на дату.
@@ -20,14 +36,20 @@ export function toChartData(series: ChurnPoint[]): { rows: ChartRow[]; forecastS
   for (const p of series) {
     let row = byDate.get(p.date);
     if (!row) {
-      row = { date: p.date, deleted: null, estimated: null, atRisk: null, forecast: null };
+      row = emptyRow(p.date);
       byDate.set(p.date, row);
       rows.push(row);
     }
     if (p.isForecast) {
-      row.atRisk = p.atRiskServices;
-      row.forecast = p.forecastNonRenewals;
+      row.riskClients = p.clientsAtRisk;
+      row.expectedClients = p.expectedChurnedClients;
+      row.revenueAtRisk = p.revenueAtRisk;
+      row.expectedLoss = p.expectedLoss;
+      row.dueServices = p.dueServices;
+      row.atRiskServices = p.atRiskServices;
     } else {
+      row.lostClients = p.churnedClients;
+      row.lostRevenue = p.lostRevenue;
       row.deleted = p.deletedServices;
       row.estimated = p.estimatedDeletions;
     }
@@ -35,6 +57,12 @@ export function toChartData(series: ChurnPoint[]): { rows: ChartRow[]; forecastS
   rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const forecastStart = series.find((p) => p.isForecast)?.date ?? null;
   return { rows, forecastStart };
+}
+
+/** Клиенты в прогнозе за горизонт — для подписи над графиком (деньги там из сводки, без округления по дням). */
+export function forecastTotals(rows: ChartRow[]) {
+  const sum = (key: 'riskClients' | 'expectedClients') => rows.reduce((s, r) => s + (r[key] ?? 0), 0);
+  return { riskClients: sum('riskClients'), expectedClients: sum('expectedClients') };
 }
 
 /** Ширина на один день графика: при 62 днях это ~800 px, на узком экране график прокручивается вбок. */

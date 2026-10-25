@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { toChartData } from '../api/chart';
+import { forecastTotals, toChartData } from '../api/chart';
 import { getSummary, useLive } from '../api/client';
 import { LOSS_LEVEL_LABEL, formatShare, lossSeverity } from '../api/money';
 import ChurnChart from '../components/ChurnChart';
@@ -18,6 +18,7 @@ export default function DashboardPage() {
 
   const total = LEVELS.reduce((s, l) => s + (data.byLevel[l] ?? 0), 0) || 1;
   const { rows: chart, forecastStart } = toChartData(data.churnSeries ?? []);
+  const totals = forecastTotals(chart);
   const loss = lossSeverity(data.expectedLoss, data.horizonRevenue);
 
   return (
@@ -69,11 +70,24 @@ export default function DashboardPage() {
       </section>
 
       <section className="panel">
-        <h2>Отток услуг: факт и прогноз</h2>
+        <h2>Отток клиентов и потери: факт и прогноз</h2>
         {chart.length === 0 ? (
           <p className="muted">История изменений статусов пока не поступала — график появится, когда бэкенд начнёт её отдавать.</p>
         ) : (
-          <ChurnChart rows={chart} forecastStart={forecastStart} />
+          <>
+            {forecastStart && (
+              <p className="chart-summary">
+                За {data.horizonDays} дн.: клиентов под риском <b className="num">{totals.riskClients}</b>, по оценке модели
+                уйдут <b className="num">≈ {totals.expectedClients.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}</b>,
+                ожидаемые потери <Money value={data.expectedLoss} className="chart-summary-loss" />
+              </p>
+            )}
+            <ChurnChart rows={chart} forecastStart={forecastStart} />
+            <p className="muted chart-note">
+              Столбики — клиенты, линии — деньги (правая ось). В прогнозе клиент стоит в день первого продления, которое
+              нечем оплатить: тогда он либо платит, либо уходит. Наведите на день, чтобы увидеть подробности.
+            </p>
+          </>
         )}
       </section>
     </div>
