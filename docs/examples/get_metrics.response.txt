@@ -14,7 +14,7 @@ churn_services{state="live"} 319
 churn_services{state="at_risk"} 76
 # HELP churn_expected_loss_eur Expected revenue loss over the forecast horizon, EUR
 # TYPE churn_expected_loss_eur gauge
-churn_expected_loss_eur{horizon_days="30"} 447.68
+churn_expected_loss_eur{horizon_days="30"} 394.43
 # HELP churn_revenue_at_risk_eur Horizon revenue not secured by balances, EUR
 # TYPE churn_revenue_at_risk_eur gauge
 churn_revenue_at_risk_eur{horizon_days="30"} 888.4
@@ -23,16 +23,16 @@ churn_revenue_at_risk_eur{horizon_days="30"} 888.4
 churn_horizon_revenue_eur{horizon_days="30"} 2006.6
 # HELP churn_covered_by_bonus_eur Horizon renewals that autoprolong pays with bonuses, EUR
 # TYPE churn_covered_by_bonus_eur gauge
-churn_covered_by_bonus_eur{horizon_days="30"} 37.09
+churn_covered_by_bonus_eur{horizon_days="30"} 21.94
 # HELP churn_monthly_revenue_eur Monthly recurring revenue of live services, EUR
 # TYPE churn_monthly_revenue_eur gauge
 churn_monthly_revenue_eur 1963.53
 # HELP churn_expected_monthly_loss_eur Expected monthly recurring revenue loss, EUR
 # TYPE churn_expected_monthly_loss_eur gauge
-churn_expected_monthly_loss_eur 548.65
+churn_expected_monthly_loss_eur 391.56
 # HELP churn_last_recalculation_timestamp_seconds Time of the last model recalculation
 # TYPE churn_last_recalculation_timestamp_seconds gauge
-churn_last_recalculation_timestamp_seconds 1792823064.876
+churn_last_recalculation_timestamp_seconds 1792906323.104
 # HELP churn_model_settings_version Version of model settings used in the last recalculation
 # TYPE churn_model_settings_version gauge
-churn_model_settings_version 101
+churn_model_settings_version 2

@@ -1,23 +1,13 @@
 import { Link } from 'react-router-dom';
-import {
-  Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts';
+import { forecastTotals, toChartData } from '../api/chart';
 import { getSummary, useLive } from '../api/client';
+import { LOSS_LEVEL_LABEL, formatShare, lossSeverity } from '../api/money';
+import ChurnChart from '../components/ChurnChart';
 import Money from '../components/Money';
 import { riskLabel } from '../components/RiskBadge';
-import type { ChurnPoint, RiskLevel } from '../types';
+import type { RiskLevel } from '../types';
 
 const LEVELS: RiskLevel[] = ['high', 'medium', 'low', 'unknown'];
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
-
-function toChartData(series: ChurnPoint[]) {
-  return series.map((p) => ({
-    date: p.date,
-    atRisk: p.atRiskServices,
-    deleted: p.isForecast ? null : p.deletedServices ?? null, // факт
-    forecast: p.isForecast ? p.forecastNonRenewals ?? null : null, // прогноз
-  }));
-}
 
 export default function DashboardPage() {
   const { data, error, loading, updatedAt } = useLive(getSummary);
@@ -27,8 +17,9 @@ export default function DashboardPage() {
   if (!data) return null;
 
   const total = LEVELS.reduce((s, l) => s + (data.byLevel[l] ?? 0), 0) || 1;
-  const chart = data.churnSeries?.length ? toChartData(data.churnSeries) : [];
-  const firstForecast = data.churnSeries?.find((p) => p.isForecast)?.date;
+  const { rows: chart, forecastStart } = toChartData(data.churnSeries ?? []);
+  const totals = forecastTotals(chart);
+  const loss = lossSeverity(data.expectedLoss, data.horizonRevenue);
 
   return (
     <div className="page">
@@ -38,17 +29,23 @@ export default function DashboardPage() {
       </div>
       {error && <p className="error">Данные могут быть устаревшими: {error}</p>}
 
-      <section className="loss panel">
+      <section className={`loss loss-${loss.level} panel`}>
         <div>
           <div className="muted">Ожидаемые потери</div>
           <Money value={data.expectedLoss} className="loss-value" />
+          {loss.share !== null && (
+            <span className={`loss-share loss-share-${loss.level}`}
+                  title={`Доля ожидаемых потерь во всей выручке от продлений за ${data.horizonDays} дн.: до 10 % — низкая, до 25 % — заметная, от 25 % — высокая`}>
+              {formatShare(loss.share)} выручки за {data.horizonDays} дн. · {LOSS_LEVEL_LABEL[loss.level]}
+            </span>
+          )}
           <div className="muted">
             из <Money value={data.revenueAtRisk} /> выручки под угрозой · услуг под риском: <b className="num">{data.servicesAtRisk}</b>
           </div>
         </div>
         <p className="loss-note">
           {data.lossExplanation ??
-            'Ожидаемые потери — это стоимость услуг, которые могут не продлиться, умноженная на вероятность оттока клиента. Деньги на балансе, которых хватит на продление, снижают оценку.'}
+            'Ожидаемые потери — это стоимость услуг, которые могут не продлиться, умноженная на вероятность, что каждую из них не продлят. Деньги на балансе, которых хватит на продление, снижают оценку.'}
         </p>
       </section>
 
@@ -73,25 +70,24 @@ export default function DashboardPage() {
       </section>
 
       <section className="panel">
-        <h2>Отток услуг: факт и прогноз</h2>
+        <h2>Отток клиентов и потери: факт и прогноз</h2>
         {chart.length === 0 ? (
           <p className="muted">История изменений статусов пока не поступала — график появится, когда бэкенд начнёт её отдавать.</p>
         ) : (
-          <div className="chart">
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={chart} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#dde3e1" />
-                <XAxis dataKey="date" tickFormatter={shortDate} />
-                <YAxis allowDecimals={false} />
-                <Tooltip labelFormatter={(v) => new Date(String(v)).toLocaleDateString('ru-RU')} />
-                <Legend />
-                {firstForecast && <ReferenceLine x={firstForecast} stroke="#6b7a77" strokeDasharray="4 4" label={{ value: 'Прогноз →', position: 'insideTopRight', fill: '#6b7a77' }} />}
-                <Area type="monotone" dataKey="deleted" name="Удалено (факт)" fill="#c8372d" fillOpacity={0.25} stroke="#c8372d" />
-                <Line type="monotone" dataKey="atRisk" name="Услуг под риском" stroke="#14444a" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="forecast" name="Не продлятся (прогноз)" stroke="#c8372d" strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          <>
+            {forecastStart && (
+              <p className="chart-summary">
+                За {data.horizonDays} дн.: клиентов под риском <b className="num">{totals.riskClients}</b>, по оценке модели
+                уйдут <b className="num">≈ {totals.expectedClients.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}</b>,
+                ожидаемые потери <Money value={data.expectedLoss} className="chart-summary-loss" />
+              </p>
+            )}
+            <ChurnChart rows={chart} forecastStart={forecastStart} />
+            <p className="muted chart-note">
+              Столбики — клиенты, линии — деньги (правая ось). В прогнозе клиент стоит в день первого продления, которое
+              нечем оплатить: тогда он либо платит, либо уходит. Наведите на день, чтобы увидеть подробности.
+            </p>
+          </>
         )}
       </section>
     </div>

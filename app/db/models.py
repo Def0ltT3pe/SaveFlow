@@ -65,6 +65,18 @@ class AuthSession(Base):
     created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column("revokedAt", DateTime(timezone=True))
+    id_token: Mapped[str | None] = mapped_column("idToken", Text)
+
+
+class OidcLoginRequest(Base):
+    __tablename__ = "oidc_login_requests"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    state_hash: Mapped[bytes] = mapped_column("stateHash", LargeBinary)
+    nonce: Mapped[str] = mapped_column(Text)
+    code_verifier: Mapped[str] = mapped_column("codeVerifier", Text)
+    created_at: Mapped[datetime] = mapped_column("createdAt", DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column("expiresAt", DateTime(timezone=True))
 
 
 # --- Модель -----------------------------------------------------------------

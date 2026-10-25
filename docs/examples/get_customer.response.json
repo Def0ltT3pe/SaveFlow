@@ -23,10 +23,10 @@
     {
       "feature": "insufficient_funds",
       "title": "Не хватает средств на продление",
-      "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03",
+      "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе 2,96 € (бонусы 0,03 € заблокированы), а продления за 30 дн. стоят 24,03 €",
       "points": 35.0,
-      "serviceId": 393,
-      "serviceName": "srv-0197-1",
+      "serviceId": 396,
+      "serviceName": "srv-0197-4",
       "services": 3
     },
     {
@@ -73,11 +73,11 @@
     "securedByBalance": 0.0,
     "coveredByBonus": 0.0,
     "atRisk": 2403.0,
-    "expectedLoss": 2132.66,
-    "expectedMonthlyLoss": 1163.06
+    "expectedLoss": 1807.56,
+    "expectedMonthlyLoss": 1033.91
   },
   "asOf": "2026-10-22T15:00:00Z",
-  "computedAt": "2026-10-24T06:24:24.876000Z",
+  "computedAt": "2026-10-25T05:32:03.104000Z",
   "services": [
     {
       "id": 393,
@@ -89,8 +89,8 @@
       "createdAt": "2026-05-10T09:15:56.331000Z",
       "expiresAt": "2026-10-18T09:15:56.331000Z",
       "scored": true,
-      "score": 88.75,
-      "probability": 0.8875,
+      "score": 84.67,
+      "probability": 0.8467,
       "daysToExpiry": -4.239,
       "renewalsInHorizon": 5,
       "monthlyPrice": 826.16,
@@ -98,8 +98,8 @@
       "securedByBalance": 0.0,
       "coveredByBonus": 0.0,
       "atRisk": 950.0,
-      "expectedLoss": 843.12,
-      "expectedMonthlyLoss": 733.22,
+      "expectedLoss": 804.37,
+      "expectedMonthlyLoss": 699.51,
       "contributions": [
         {
           "feature": "prolong_wait",
@@ -112,10 +112,10 @@
         {
           "feature": "insufficient_funds",
           "title": "Не хватает средств на продление",
-          "value": 1.0,
+          "value": 0.8833,
           "weight": 35.0,
-          "points": 35.0,
-          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03"
+          "points": 30.92,
+          "text": "Деньги на продления кончатся менее чем через час: на балансе 2,96 € (бонусы 0,03 € заблокированы), а продления за 30 дн. стоят 24,03 €"
         },
         {
           "feature": "unpaid_transactions",
@@ -160,8 +160,8 @@
       "securedByBalance": 0.0,
       "coveredByBonus": 0.0,
       "atRisk": 805.0,
-      "expectedLoss": 714.44,
-      "expectedMonthlyLoss": 238.15,
+      "expectedLoss": 428.1,
+      "expectedMonthlyLoss": 142.7,
       "contributions": [
         {
           "feature": "insufficient_funds",
@@ -169,7 +169,7 @@
           "value": 0.7308,
           "weight": 35.0,
           "points": 25.58,
-          "text": "Денег не хватит на ближайшее продление через 16 дн.: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03"
+          "text": "Денег не хватит на ближайшее продление через 16 дн.: на балансе 2,96 € (бонусы 0,03 € заблокированы), а продления за 30 дн. стоят 24,03 €"
         },
         {
           "feature": "expiring_no_autoprolong",
@@ -268,7 +268,7 @@
           "value": 1.0,
           "weight": 35.0,
           "points": 35.0,
-          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе €2.96 (бонусы €0.03 заблокированы), а продления за 30 дн. стоят €24.03"
+          "text": "Денег не хватает на продление, которое нужно оплатить сейчас: на балансе 2,96 € (бонусы 0,03 € заблокированы), а продления за 30 дн. стоят 24,03 €"
         },
         {
           "feature": "unpaid_transactions",

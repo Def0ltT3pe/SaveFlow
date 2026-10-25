@@ -78,6 +78,7 @@ export interface BSummary {
   accountsTotal: number;
   accountsByLevel: Record<BackendLevel, number>;
   servicesAtRisk: number;
+  horizonDays: number;
   money: BMoney;
   explanation: string;
 }
@@ -89,7 +90,14 @@ export interface BTimeline {
     deletions: number;
     estimatedDeletions: number;
     dueServices: number;
+    dueAtRisk: number;
     expectedNonRenewals: number;
+    churnedClients: number;
+    lostRevenue: number;
+    clientsAtRisk: number;
+    expectedChurnedClients: number;
+    revenueAtRisk: number;
+    expectedLoss: number;
   }[];
 }
 
@@ -101,6 +109,7 @@ export interface BSettings {
   };
   version: number;
   features: { key: string; title: string; description: string; defaultWeight: number }[];
+  defaults: { weights: Record<string, number>; thresholds: { high: number; medium: number } };
 }
 
 export const toCustomer = (c: BCustomer): CustomerListItem => ({
@@ -144,9 +153,17 @@ export const toCustomerDetail = (c: BCustomerDetail): CustomerDetail => ({
 const toChurnPoint = (p: BTimeline['points'][number]): ChurnPoint => ({
   date: p.date,
   isForecast: p.kind === 'forecast',
-  atRiskServices: p.dueServices,
-  deletedServices: p.deletions + p.estimatedDeletions,
+  deletedServices: p.deletions,
+  estimatedDeletions: p.estimatedDeletions,
+  dueServices: p.dueServices,
+  atRiskServices: p.dueAtRisk,
   forecastNonRenewals: p.expectedNonRenewals,
+  churnedClients: p.churnedClients,
+  lostRevenue: p.lostRevenue,
+  clientsAtRisk: p.clientsAtRisk,
+  expectedChurnedClients: p.expectedChurnedClients,
+  revenueAtRisk: p.revenueAtRisk,
+  expectedLoss: p.expectedLoss,
 });
 
 export const toSummary = (s: BSummary, t: BTimeline): AnalyticsSummary => ({
@@ -160,6 +177,8 @@ export const toSummary = (s: BSummary, t: BTimeline): AnalyticsSummary => ({
   servicesAtRisk: s.servicesAtRisk,
   revenueAtRisk: s.money.atRisk,
   expectedLoss: s.money.expectedLoss,
+  horizonRevenue: s.money.horizonRevenue,
+  horizonDays: s.horizonDays,
   lossExplanation: s.explanation,
   churnSeries: t.points.map(toChurnPoint),
   updatedAt: s.run?.computedAt,
@@ -171,13 +190,39 @@ export const toSettings = (b: BSettings): ModelSettings => ({
     label: f.title,
     description: f.description,
     value: b.settings.weights[f.key] ?? f.defaultWeight,
+    defaultValue: b.defaults.weights[f.key] ?? f.defaultWeight,
     min: 0,
     max: 100,
     step: 1,
   })),
   thresholds: b.settings.thresholds,
+  defaultThresholds: b.defaults.thresholds,
   horizonDays: b.settings.horizonDays,
 });
+
+/** Тело PATCH, возвращающее все ползунки (коэффициенты и пороги) к значениям по умолчанию. */
+export const resetToDefaultsPatch = (s: ModelSettings): ModelSettingsPatch => ({
+  coefficients: Object.fromEntries(s.coefficients.map((c) => [c.key, c.defaultValue])),
+  thresholds: { ...s.defaultThresholds },
+});
+
+/** Тело PATCH с текущими значениями всех ползунков: по нему сброс можно отменить. */
+export const currentValuesPatch = (s: ModelSettings): ModelSettingsPatch => ({
+  coefficients: Object.fromEntries(s.coefficients.map((c) => [c.key, c.value])),
+  thresholds: { ...s.thresholds },
+});
+
+/** Настройки с ползунками, переставленными по patch, — чтобы показать их, не дожидаясь ответа бэкенда. */
+export const withValues = (s: ModelSettings, p: ModelSettingsPatch): ModelSettings => ({
+  ...s,
+  coefficients: s.coefficients.map((c) => ({ ...c, value: p.coefficients?.[c.key] ?? c.value })),
+  thresholds: { ...s.thresholds, ...p.thresholds },
+});
+
+/** Стоят ли все ползунки на значениях по умолчанию. */
+export const isAtDefaults = (s: ModelSettings): boolean =>
+  s.coefficients.every((c) => c.value === c.defaultValue) &&
+  s.thresholds.high === s.defaultThresholds.high && s.thresholds.medium === s.defaultThresholds.medium;
 
 export const fromSettingsPatch = (p: ModelSettingsPatch) => {
   const body: Record<string, unknown> = {};

@@ -8,7 +8,14 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-16",
@@ -16,7 +23,14 @@
       "deletions": 0,
       "estimatedDeletions": 1,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 1,
+      "lostRevenue": 633.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-17",
@@ -24,7 +38,14 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-18",
@@ -32,39 +53,74 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-19",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 2,
+      "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-20",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 1,
+      "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-21",
       "kind": "fact",
       "deletions": 0,
-      "estimatedDeletions": 4,
+      "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-22",
       "kind": "fact",
-      "deletions": 4,
-      "estimatedDeletions": 7,
+      "deletions": 15,
+      "estimatedDeletions": 0,
       "dueServices": 0,
-      "expectedNonRenewals": 0.0
+      "dueAtRisk": 0,
+      "expectedNonRenewals": 0.0,
+      "churnedClients": 15,
+      "lostRevenue": 7768.0,
+      "clientsAtRisk": 0,
+      "expectedChurnedClients": 0.0,
+      "revenueAtRisk": 0.0,
+      "expectedLoss": 0.0
     },
     {
       "date": "2026-10-22",
@@ -72,7 +128,14 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 61,
-      "expectedNonRenewals": 21.9968
+      "dueAtRisk": 36,
+      "expectedNonRenewals": 21.956,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 26,
+      "expectedChurnedClients": 16.8258,
+      "revenueAtRisk": 9824.0,
+      "expectedLoss": 7080.17
     },
     {
       "date": "2026-10-23",
@@ -80,7 +143,14 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 9,
-      "expectedNonRenewals": 1.6615
+      "dueAtRisk": 3,
+      "expectedNonRenewals": 1.6615,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 3,
+      "expectedChurnedClients": 1.3325,
+      "revenueAtRisk": 3378.0,
+      "expectedLoss": 1277.87
     },
     {
       "date": "2026-10-24",
@@ -88,7 +158,14 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 8,
-      "expectedNonRenewals": 0.6697
+      "dueAtRisk": 1,
+      "expectedNonRenewals": 0.6697,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 1,
+      "expectedChurnedClients": 0.4839,
+      "revenueAtRisk": 1702.0,
+      "expectedLoss": 740.02
     },
     {
       "date": "2026-10-25",
@@ -96,7 +173,14 @@
       "deletions": 0,
       "estimatedDeletions": 0,
       "dueServices": 4,
-      "expectedNonRenewals": 0.6287
+      "dueAtRisk": 2,
+      "expectedNonRenewals": 0.6287,
+      "churnedClients": 0,
+      "lostRevenue": 0.0,
+      "clientsAtRisk": 1,
+      "expectedChurnedClients": 0.3334,
+      "revenueAtRisk": 818.0,
+      "expectedLoss": 441.92
     }
   ]
 }

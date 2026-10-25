@@ -100,10 +100,24 @@ def runway_days(live: list[ServiceData], first_due: dict[int, float], available:
     return hi
 
 
-def _first_renewal_from(t: float, first_due: float, period: float, horizon: int) -> float | None:
-    """Ближайшее продление услуги не раньше момента t (в пределах горизонта)."""
-    when = first_due if first_due >= t else first_due + math.ceil((t - first_due) / period - 1e-9) * period
-    return when if when <= horizon else None
+def _paid_renewals(services: list[ServiceData], first_due: dict[int, float], renewals: dict[int, int],
+                   available: int, horizon: int) -> tuple[float | None, dict[int, int]]:
+    """Когда кончатся деньги и сколько продлений каждой услуги они успеют оплатить.
+
+    Продления оплачиваются по порядку наступления и только целиком. Наступившие в один и тот же момент
+    оплачиваются по очереди (по id услуги), каждое — если на него ещё хватает: денег на одно из двух
+    одновременных продлений — значит одно оплачено, а не оба под угрозой.
+    """
+    ends = runway_days(services, first_due, available, horizon)
+    paid = {s.id: _paid_before(ends, renewals[s.id], first_due[s.id], s) for s in services}
+    if ends is not None:
+        left = available - sum(s.price * paid[s.id] for s in services)
+        for s in sorted(services, key=lambda s: s.id):
+            due_now = _renewals_by(ends + 1e-7, first_due[s.id], PERIOD_DAYS[s.payment_term]) > paid[s.id]
+            if due_now and paid[s.id] < renewals[s.id] and s.price <= left:
+                paid[s.id] += 1
+                left -= s.price
+    return ends, paid
 
 
 def level_for(score: float | None, settings: ModelSettings) -> str:
@@ -124,9 +138,8 @@ def _split_payments(auto: list[ServiceData], first_due: dict[int, float], renewa
     тратится первым и до конца: продление, на котором он кончается, оплачивается остатком баланса
     и добирается бонусами.
     """
-    funds_end = runway_days(auto, first_due, balance + bonus, horizon)
+    _, paid = _paid_renewals(auto, first_due, renewals, balance + bonus, horizon)
     balance_ends = runway_days(auto, first_due, balance, horizon)
-    paid = {s.id: _paid_before(funds_end, renewals[s.id], first_due[s.id], s) for s in auto}
     secured = {s.id: s.price * min(paid[s.id], _paid_before(balance_ends, renewals[s.id], first_due[s.id], s))
                for s in auto}
     if balance_ends is not None:
@@ -212,7 +225,7 @@ def score_account(
     account_cost = sum(cost[s.id] for s in live)
 
     available = account.balance + account.usable_bonus
-    run_out = runway_days(live, first_due, available, horizon)
+    run_out, funded = _paid_renewals(live, first_due, renewals, available, horizon)
     # Автопродление оплачивает каждое продление в момент наступления: сначала с основного баланса, потом
     # доступными бонусами. Поэтому деньги распределяются по времени, как и в признаке нехватки средств:
     # почасовая услуга не «забирает» весь месяц вперёд у месячной, которую нужно продлить раньше.
@@ -222,9 +235,10 @@ def score_account(
 
     scored: list[tuple[ServiceData, float, list[ContributionResult]]] = []
     for s in live:
+        # Первое продление, которое уже нечем оплатить: следующее за оплаченными
         unfunded = None
-        if run_out is not None and renewals[s.id]:
-            unfunded = _first_renewal_from(run_out, first_due[s.id], PERIOD_DAYS[s.payment_term], horizon)
+        if funded[s.id] < renewals[s.id]:
+            unfunded = first_due[s.id] + funded[s.id] * PERIOD_DAYS[s.payment_term]
         ctx = ServiceContext(
             service=s, account=account, account_services=tuple(services),
             tx=tx_stats.get(s.id, TxStats()), as_of=as_of, settings=settings,
@@ -251,10 +265,9 @@ def score_account(
         reasons = _account_reasons(scored)
     else:
         score, reasons = None, [_no_score_reason(services)]
-    # Деньги считаются по вероятности ухода клиента: уходя, он уходит со всеми услугами.
-    # Так ожидаемая потеря = score клиента / 100 × сумма под угрозой, как и написано в объяснении.
-    p = (score or 0) / 100
-
+    # Деньги считаются по вероятности непродления каждой услуги (score услуги / 100), а не клиента целиком:
+    # иначе одна горящая услуга у клиента с сотней услуг умножалась бы на продления их всех.
+    # Признаки клиента (нехватка денег, история уходов) входят в score каждой его услуги.
     results: list[ServiceResult] = []
     scores = {s.id: (sc, contribs) for s, sc, contribs in scored}
     for s in services:
@@ -264,8 +277,9 @@ def score_account(
             continue
         service_score, contributions = scores[s.id]
         at_risk = cost[s.id] - secured.get(s.id, 0) - by_bonus.get(s.id, 0)
+        p = service_score / 100
         results.append(ServiceResult(
-            s, True, service_score, round(service_score / 100, 4), contributions, days[s.id], renewals[s.id], mp,
+            s, True, service_score, round(p, 4), contributions, days[s.id], renewals[s.id], mp,
             cost[s.id], secured.get(s.id, 0), by_bonus.get(s.id, 0), at_risk, p * at_risk, p * mp,
         ))
 

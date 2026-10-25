@@ -14,7 +14,7 @@ export default function Layout({ user, onLogout }: { user: User; onLogout: () =>
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden />
+          <img className="brand-logo" src="/logo.png" alt="" />
           <span>SaveFlow</span>
         </div>
         <nav>

@@ -82,14 +82,30 @@ export interface CustomerDetail extends CustomerListItem {
 
 // ── Аналитика ───────────────────────────────────────────
 export interface ChurnPoint {
-  date: string; // ISO
-  /** услуг под риском на дату */
-  atRiskServices: number;
-  /** факт: удалённые услуги (для прошлых дат) */
-  deletedServices?: number;
-  /** прогноз: ожидаемые непродления (для будущих дат) */
-  forecastNonRenewals?: number;
+  date: string; // YYYY-MM-DD (UTC)
   isForecast: boolean;
+  /** факт: услуги, перешедшие в deleted между снимками */
+  deletedServices: number;
+  /** факт, но дата оценена: удалённые услуги без истории (дата истечения + льготный период) */
+  estimatedDeletions: number;
+  /** прогноз: все услуги с ближайшим продлением в этот день */
+  dueServices: number;
+  /** прогноз: из них услуги под риском (score не ниже порога среднего риска) */
+  atRiskServices: number;
+  /** прогноз: ожидаемые непродления — сумма вероятностей ухода */
+  forecastNonRenewals: number;
+  /** факт: клиенты, у которых в этот день удалили услугу */
+  churnedClients: number;
+  /** факт: стоимость продлений удалённых услуг */
+  lostRevenue: Cents;
+  /** прогноз: клиенты среднего и высокого риска, у которых в этот день первое продление без денег на счёте */
+  clientsAtRisk: number;
+  /** прогноз: сколько клиентов уйдёт в этот день по оценке модели (сумма вероятностей) */
+  expectedChurnedClients: number;
+  /** прогноз: стоимость продлений этого дня, не покрытых деньгами */
+  revenueAtRisk: Cents;
+  /** прогноз: ожидаемые потери этого дня; сумма по дням — «Ожидаемые потери» сводки */
+  expectedLoss: Cents;
 }
 
 export interface AnalyticsSummary {
@@ -100,6 +116,9 @@ export interface AnalyticsSummary {
   revenueAtRisk: Cents;
   /** Ожидаемые потери с учётом вероятности */
   expectedLoss: Cents;
+  /** Вся выручка от продлений за горизонт прогноза: база для доли потерь */
+  horizonRevenue: Cents;
+  horizonDays: number;
   /** Объяснение смысла денежной оценки (формула простыми словами) */
   lossExplanation?: string;
   churnSeries?: ChurnPoint[];
@@ -112,6 +131,8 @@ export interface Coefficient {
   label: string;
   description?: string;
   value: number;
+  /** значение по умолчанию: к нему возвращает кнопка сброса */
+  defaultValue: number;
   min: number;
   max: number;
   step?: number;
@@ -120,6 +141,7 @@ export interface Coefficient {
 export interface ModelSettings {
   coefficients: Coefficient[];
   thresholds: { medium: number; high: number };
+  defaultThresholds: { medium: number; high: number };
   /** сколько часов/дней смотрим вперёд, если бэкенд это поддерживает */
   horizonDays?: number;
 }

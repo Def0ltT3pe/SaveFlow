@@ -1,0 +1,2461 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SaveFlow — Risk Analytics",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Вход по логину и паролю.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/config": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Config",
+        "description": "Включён ли вход через внешнего провайдера (OIDC) и как подписать кнопку.",
+        "operationId": "oidc_config_api_v1_auth_oidc_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/login": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Login",
+        "description": "Начало входа через OIDC: переход на страницу входа провайдера (Authorization Code + PKCE).",
+        "operationId": "oidc_login_api_v1_auth_oidc_login_get",
+        "parameters": [
+          {
+            "name": "prompt",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": "login",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "login — заново спросить пароль у провайдера, чтобы войти другим пользователем",
+              "title": "Prompt"
+            },
+            "description": "login — заново спросить пароль у провайдера, чтобы войти другим пользователем"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/callback": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Callback",
+        "description": "Возврат от провайдера: проверка id_token и выдача обычной сессии SaveFlow.",
+        "operationId": "oidc_callback_api_v1_auth_oidc_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Description"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/oidc/logout": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Logout",
+        "description": "Выход у провайдера без сессии панели (провайдер спросит «Выйти?»). Панель выходит через POST.",
+        "operationId": "oidc_logout_api_v1_auth_oidc_logout_get",
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Oidc Session Logout",
+        "description": "Выход из сессии, открытой через OIDC, и у провайдера: фронт переходит по адресу из ответа.\n\nС id_token сессии провайдер не спрашивает «Выйти?» и сразу возвращает на свою форму входа.",
+        "operationId": "oidc_session_logout_api_v1_auth_oidc_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcLogout"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "description": "Получение текущего пользователя.",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "Завершение текущей сессии.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "tags": [
+          "customers"
+        ],
+        "summary": "List Customers",
+        "description": "Получение списка клиентов с оценками риска; фильтрация и сортировка рейтинга.",
+        "operationId": "list_customers_api_v1_customers_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "id",
+                "email",
+                "balance",
+                "totalReplenished",
+                "score",
+                "expectedLoss"
+              ],
+              "type": "string",
+              "default": "score",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "type": "string",
+              "default": "desc",
+              "title": "Order"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "high",
+                      "medium",
+                      "low",
+                      "none"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Фильтр по уровням, можно несколько",
+              "title": "Level"
+            },
+            "description": "Фильтр по уровням, можно несколько"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Подстрока email или ID клиента (42 или #42)",
+              "title": "Search"
+            },
+            "description": "Подстрока email или ID клиента (42 или #42)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/customers/{customer_id}": {
+      "get": {
+        "tags": [
+          "customers"
+        ],
+        "summary": "Get Customer",
+        "description": "Получение подробной оценки клиента, его услуг, признаков риска и объяснений.",
+        "operationId": "get_customer_api_v1_customers__customer_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/summary": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Summary",
+        "description": "Получение сводных показателей риска и денежной оценки потенциальных потерь.",
+        "operationId": "summary_api_v1_analytics_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/analytics/churn-timeline": {
+      "get": {
+        "tags": [
+          "analytics"
+        ],
+        "summary": "Churn Timeline",
+        "description": "График оттока: факт удалений и прогноз непродлений на горизонт.",
+        "operationId": "churn_timeline_api_v1_analytics_churn_timeline_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days_back",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days Back"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChurnTimeline"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/model/settings": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Get Settings",
+        "description": "Получение действующих настроек и коэффициентов модели.",
+        "operationId": "get_settings_api_v1_model_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSettingsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Patch Settings",
+        "description": "Изменение настроек модели с автоматическим пересчётом результатов.",
+        "operationId": "patch_settings_api_v1_model_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelSettingsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/source/snapshot": {
+      "put": {
+        "tags": [
+          "source"
+        ],
+        "summary": "Put Snapshot",
+        "description": "Загрузка или полная замена снимка исходных данных с автоматическим пересчётом.",
+        "operationId": "put_snapshot_api_v1_source_snapshot_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/version": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Version",
+        "description": "Лёгкий polling: фронт перезапрашивает данные, когда runId изменился.",
+        "operationId": "version_api_v1_events_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Versions"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/stream": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Stream",
+        "description": "SSE: событие `update` после каждого пересчёта модели (новые данные или настройки).",
+        "operationId": "stream_api_v1_events_stream_get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Токен из /auth/login",
+              "title": "Token"
+            },
+            "description": "Токен из /auth/login"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Metrics",
+        "description": "Получение агрегированных метрик в формате Prometheus.",
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountIn": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^@\\s<>\"`\\x00-\\x1f\\x7f]+@[^@\\s<>\"`\\x00-\\x1f\\x7f]+$",
+            "title": "Email"
+          },
+          "balance": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Balance",
+            "default": 0
+          },
+          "withdrawBalance": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Withdrawbalance",
+            "default": 0
+          },
+          "totalReplenished": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Totalreplenished",
+            "default": 0
+          },
+          "bonusBalance": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Bonusbalance",
+            "default": 0
+          },
+          "bonusState": {
+            "type": "string",
+            "enum": [
+              "locked",
+              "unlocked"
+            ],
+            "title": "Bonusstate",
+            "default": "locked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email"
+        ],
+        "title": "AccountIn"
+      },
+      "ChurnTimeline": {
+        "properties": {
+          "asOf": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asof"
+          },
+          "horizonDays": {
+            "type": "integer",
+            "title": "Horizondays"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/TimelinePoint"
+            },
+            "type": "array",
+            "title": "Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asOf",
+          "horizonDays",
+          "points"
+        ],
+        "title": "ChurnTimeline"
+      },
+      "Contribution": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "Значение признака 0..1"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "points": {
+            "type": "number",
+            "title": "Points",
+            "description": "Вклад в score = weight × value"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature",
+          "title",
+          "value",
+          "weight",
+          "points",
+          "text"
+        ],
+        "title": "Contribution"
+      },
+      "CustomerDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          },
+          "withdrawBalance": {
+            "type": "integer",
+            "title": "Withdrawbalance"
+          },
+          "bonusBalance": {
+            "type": "integer",
+            "title": "Bonusbalance"
+          },
+          "bonusState": {
+            "type": "string",
+            "title": "Bonusstate"
+          },
+          "totalReplenished": {
+            "type": "integer",
+            "title": "Totalreplenished"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "0..100, null — оценки нет"
+          },
+          "loyalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loyalty",
+            "description": "100 − score"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low",
+              "none"
+            ],
+            "title": "Level"
+          },
+          "mainReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mainreason"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "liveServices": {
+            "type": "integer",
+            "title": "Liveservices"
+          },
+          "money": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "asOf": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asof"
+          },
+          "computedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Computedat"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceRiskOut"
+            },
+            "type": "array",
+            "title": "Services"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "balance",
+          "withdrawBalance",
+          "bonusBalance",
+          "bonusState",
+          "totalReplenished",
+          "score",
+          "loyalty",
+          "level",
+          "mainReason",
+          "reasons",
+          "liveServices",
+          "money",
+          "asOf",
+          "computedAt",
+          "services"
+        ],
+        "title": "CustomerDetail"
+      },
+      "CustomerListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          },
+          "withdrawBalance": {
+            "type": "integer",
+            "title": "Withdrawbalance"
+          },
+          "bonusBalance": {
+            "type": "integer",
+            "title": "Bonusbalance"
+          },
+          "bonusState": {
+            "type": "string",
+            "title": "Bonusstate"
+          },
+          "totalReplenished": {
+            "type": "integer",
+            "title": "Totalreplenished"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "0..100, null — оценки нет"
+          },
+          "loyalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loyalty",
+            "description": "100 − score"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low",
+              "none"
+            ],
+            "title": "Level"
+          },
+          "mainReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mainreason"
+          },
+          "reasons": {
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "type": "array",
+            "title": "Reasons"
+          },
+          "liveServices": {
+            "type": "integer",
+            "title": "Liveservices"
+          },
+          "money": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "balance",
+          "withdrawBalance",
+          "bonusBalance",
+          "bonusState",
+          "totalReplenished",
+          "score",
+          "loyalty",
+          "level",
+          "mainReason",
+          "reasons",
+          "liveServices",
+          "money"
+        ],
+        "title": "CustomerListItem"
+      },
+      "CustomerPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "id",
+              "email",
+              "balance",
+              "totalReplenished",
+              "score",
+              "expectedLoss"
+            ],
+            "title": "Sort"
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "title": "Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "sort",
+          "order"
+        ],
+        "title": "CustomerPage"
+      },
+      "FeatureInfo": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "defaultWeight": {
+            "type": "number",
+            "title": "Defaultweight"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "description",
+          "defaultWeight"
+        ],
+        "title": "FeatureInfo"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LevelCounts": {
+        "properties": {
+          "high": {
+            "type": "integer",
+            "title": "High",
+            "default": 0
+          },
+          "medium": {
+            "type": "integer",
+            "title": "Medium",
+            "default": 0
+          },
+          "low": {
+            "type": "integer",
+            "title": "Low",
+            "default": 0
+          },
+          "none": {
+            "type": "integer",
+            "title": "None",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "LevelCounts"
+      },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "ModelSettings": {
+        "properties": {
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Weights"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
+          },
+          "horizonDays": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Horizondays",
+            "description": "Горизонт прогноза в днях",
+            "default": 30
+          },
+          "prolongWaitGraceDays": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 0.0,
+            "title": "Prolongwaitgracedays",
+            "description": "Сколько дней prolong_wait до удаления",
+            "default": 5
+          },
+          "newServiceDays": {
+            "type": "integer",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Newservicedays",
+            "description": "Сколько дней услуга считается новой",
+            "default": 30
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "max",
+              "revenue_weighted"
+            ],
+            "title": "Aggregation",
+            "description": "Как score услуг сводится в score клиента",
+            "default": "max"
+          },
+          "asOfMode": {
+            "type": "string",
+            "enum": [
+              "snapshot",
+              "now",
+              "fixed"
+            ],
+            "title": "Asofmode",
+            "description": "Опорная дата: дата снимка, текущее время или asOfFixed",
+            "default": "snapshot"
+          },
+          "asOfFixed": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asoffixed"
+          }
+        },
+        "type": "object",
+        "title": "ModelSettings"
+      },
+      "ModelSettingsOut": {
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/ModelSettings"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/FeatureInfo"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/ModelSettings",
+            "description": "Значения по умолчанию: для кнопки «Вернуть значения по умолчанию»"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings",
+          "version",
+          "updatedAt",
+          "features"
+        ],
+        "title": "ModelSettingsOut"
+      },
+      "ModelSettingsPatch": {
+        "properties": {
+          "weights": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weights"
+          },
+          "thresholds": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ThresholdsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "horizonDays": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Horizondays"
+          },
+          "prolongWaitGraceDays": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prolongwaitgracedays"
+          },
+          "newServiceDays": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Newservicedays"
+          },
+          "aggregation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "max",
+                  "revenue_weighted"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aggregation"
+          },
+          "asOfMode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "snapshot",
+                  "now",
+                  "fixed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asofmode"
+          },
+          "asOfFixed": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asoffixed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModelSettingsPatch",
+        "description": "Тело PATCH /api/v1/model/settings: только изменяемые поля, weights можно передать частично."
+      },
+      "Money": {
+        "properties": {
+          "monthlyRevenue": {
+            "type": "number",
+            "title": "Monthlyrevenue",
+            "description": "Выручка в месяц с действующих услуг"
+          },
+          "horizonRevenue": {
+            "type": "number",
+            "title": "Horizonrevenue",
+            "description": "Сколько клиент должен заплатить за продления в горизонте"
+          },
+          "securedByBalance": {
+            "type": "number",
+            "title": "Securedbybalance",
+            "description": "Часть horizon_revenue, которую автопродление спишет с основного баланса"
+          },
+          "coveredByBonus": {
+            "type": "number",
+            "title": "Coveredbybonus",
+            "description": "Часть horizon_revenue, которую автопродление оплатит доступными бонусами",
+            "default": 0
+          },
+          "atRisk": {
+            "type": "number",
+            "title": "Atrisk",
+            "description": "horizon_revenue − secured_by_balance − covered_by_bonus"
+          },
+          "expectedLoss": {
+            "type": "number",
+            "title": "Expectedloss",
+            "description": "Σ по услугам: вероятность непродления услуги (её score / 100) × её at_risk"
+          },
+          "expectedMonthlyLoss": {
+            "type": "number",
+            "title": "Expectedmonthlyloss",
+            "description": "Σ по услугам: вероятность непродления услуги × её месячная цена"
+          }
+        },
+        "type": "object",
+        "required": [
+          "monthlyRevenue",
+          "horizonRevenue",
+          "securedByBalance",
+          "atRisk",
+          "expectedLoss",
+          "expectedMonthlyLoss"
+        ],
+        "title": "Money",
+        "description": "Денежные показатели в евроцентах."
+      },
+      "OidcInfo": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "OidcInfo"
+      },
+      "OidcLogout": {
+        "properties": {
+          "redirect": {
+            "type": "string",
+            "title": "Redirect",
+            "description": "Куда перейти браузеру: выход у провайдера или страница входа панели"
+          }
+        },
+        "type": "object",
+        "required": [
+          "redirect"
+        ],
+        "title": "OidcLogout"
+      },
+      "Reason": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
+          },
+          "serviceId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serviceid"
+          },
+          "serviceName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Servicename"
+          },
+          "services": {
+            "type": "integer",
+            "title": "Services",
+            "description": "Сколько услуг клиента дают этот сигнал; 0 — сигнал про клиента целиком",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature",
+          "title",
+          "text"
+        ],
+        "title": "Reason"
+      },
+      "RiskRunOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "computedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Computedat"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Asof"
+          },
+          "settingsVersion": {
+            "type": "integer",
+            "title": "Settingsversion"
+          },
+          "snapshotId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshotid"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "computedAt",
+          "asOf",
+          "settingsVersion",
+          "snapshotId",
+          "reason"
+        ],
+        "title": "RiskRunOut"
+      },
+      "RiskSummary": {
+        "properties": {
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiskRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "horizonDays": {
+            "type": "integer",
+            "title": "Horizondays"
+          },
+          "accountsTotal": {
+            "type": "integer",
+            "title": "Accountstotal"
+          },
+          "accountsByLevel": {
+            "$ref": "#/components/schemas/LevelCounts"
+          },
+          "averageScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Averagescore"
+          },
+          "servicesTotal": {
+            "type": "integer",
+            "title": "Servicestotal"
+          },
+          "servicesLive": {
+            "type": "integer",
+            "title": "Serviceslive"
+          },
+          "servicesAtRisk": {
+            "type": "integer",
+            "title": "Servicesatrisk",
+            "description": "Действующие услуги со score не ниже порога medium"
+          },
+          "money": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "highRiskAtRisk": {
+            "type": "number",
+            "title": "Highriskatrisk",
+            "description": "at_risk клиентов с высоким риском"
+          },
+          "highRiskBalance": {
+            "type": "number",
+            "title": "Highriskbalance",
+            "description": "Сумма balance клиентов с высоким риском"
+          },
+          "highRiskWithdrawable": {
+            "type": "number",
+            "title": "Highriskwithdrawable",
+            "description": "Сумма withdrawBalance клиентов с высоким риском"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run",
+          "horizonDays",
+          "accountsTotal",
+          "accountsByLevel",
+          "averageScore",
+          "servicesTotal",
+          "servicesLive",
+          "servicesAtRisk",
+          "money",
+          "highRiskAtRisk",
+          "highRiskBalance",
+          "highRiskWithdrawable",
+          "explanation"
+        ],
+        "title": "RiskSummary"
+      },
+      "ServiceIn": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "title": "Name"
+          },
+          "ownerId": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Ownerid"
+          },
+          "paymentTerm": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "week",
+              "month",
+              "quarter_year",
+              "half_year",
+              "year"
+            ],
+            "title": "Paymentterm"
+          },
+          "autoProlong": {
+            "type": "boolean",
+            "title": "Autoprolong",
+            "default": false
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expiresat"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "blocked",
+              "deleted",
+              "suspended",
+              "prolong_wait"
+            ],
+            "title": "Status"
+          },
+          "price": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "ownerId",
+          "paymentTerm",
+          "createdAt",
+          "expiresAt",
+          "status",
+          "price"
+        ],
+        "title": "ServiceIn"
+      },
+      "ServiceRiskOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "blocked",
+              "deleted",
+              "suspended",
+              "prolong_wait"
+            ],
+            "title": "Status"
+          },
+          "paymentTerm": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "week",
+              "month",
+              "quarter_year",
+              "half_year",
+              "year"
+            ],
+            "title": "Paymentterm"
+          },
+          "autoProlong": {
+            "type": "boolean",
+            "title": "Autoprolong"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expiresat"
+          },
+          "scored": {
+            "type": "boolean",
+            "title": "Scored",
+            "description": "false для deleted/blocked: они уже потеряны и не оцениваются"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "probability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probability"
+          },
+          "daysToExpiry": {
+            "type": "number",
+            "title": "Daystoexpiry"
+          },
+          "renewalsInHorizon": {
+            "type": "integer",
+            "title": "Renewalsinhorizon"
+          },
+          "monthlyPrice": {
+            "type": "number",
+            "title": "Monthlyprice"
+          },
+          "horizonRevenue": {
+            "type": "number",
+            "title": "Horizonrevenue"
+          },
+          "securedByBalance": {
+            "type": "number",
+            "title": "Securedbybalance"
+          },
+          "coveredByBonus": {
+            "type": "number",
+            "title": "Coveredbybonus",
+            "default": 0
+          },
+          "atRisk": {
+            "type": "number",
+            "title": "Atrisk"
+          },
+          "expectedLoss": {
+            "type": "number",
+            "title": "Expectedloss"
+          },
+          "expectedMonthlyLoss": {
+            "type": "number",
+            "title": "Expectedmonthlyloss"
+          },
+          "contributions": {
+            "items": {
+              "$ref": "#/components/schemas/Contribution"
+            },
+            "type": "array",
+            "title": "Contributions"
+          },
+          "transactions": {
+            "$ref": "#/components/schemas/TxStatsOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "paymentTerm",
+          "autoProlong",
+          "price",
+          "createdAt",
+          "expiresAt",
+          "scored",
+          "score",
+          "probability",
+          "daysToExpiry",
+          "renewalsInHorizon",
+          "monthlyPrice",
+          "horizonRevenue",
+          "securedByBalance",
+          "atRisk",
+          "expectedLoss",
+          "expectedMonthlyLoss",
+          "contributions",
+          "transactions"
+        ],
+        "title": "ServiceRiskOut"
+      },
+      "SnapshotIn": {
+        "properties": {
+          "referenceDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencedate"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountIn"
+            },
+            "type": "array",
+            "title": "Accounts"
+          },
+          "services": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceIn"
+            },
+            "type": "array",
+            "title": "Services",
+            "default": []
+          },
+          "transactions": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionIn"
+            },
+            "type": "array",
+            "title": "Transactions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "accounts"
+        ],
+        "title": "SnapshotIn",
+        "description": "Полный снимок источника в формате data.json.\n\nreferenceDate — необязательное расширение: момент, на который снят снимок.\nЕсли его нет, берётся самая поздняя дата из самих данных."
+      },
+      "SnapshotResult": {
+        "properties": {
+          "snapshotId": {
+            "type": "integer",
+            "title": "Snapshotid"
+          },
+          "referenceDate": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Referencedate"
+          },
+          "accounts": {
+            "type": "integer",
+            "title": "Accounts"
+          },
+          "services": {
+            "type": "integer",
+            "title": "Services"
+          },
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          },
+          "statusChanges": {
+            "type": "integer",
+            "title": "Statuschanges"
+          },
+          "run": {
+            "$ref": "#/components/schemas/RiskRunOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "referenceDate",
+          "accounts",
+          "services",
+          "transactions",
+          "statusChanges",
+          "run"
+        ],
+        "title": "SnapshotResult"
+      },
+      "Thresholds": {
+        "properties": {
+          "high": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "High",
+            "default": 60
+          },
+          "medium": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Medium",
+            "default": 30
+          }
+        },
+        "type": "object",
+        "title": "Thresholds",
+        "description": "Пороги уровней риска по score (0..100): score >= high → высокий, >= medium → средний."
+      },
+      "ThresholdsPatch": {
+        "properties": {
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "medium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium"
+          }
+        },
+        "type": "object",
+        "title": "ThresholdsPatch"
+      },
+      "TimelinePoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "fact",
+              "forecast"
+            ],
+            "title": "Kind"
+          },
+          "deletions": {
+            "type": "integer",
+            "title": "Deletions",
+            "description": "Факт: услуги, перешедшие в deleted между снимками",
+            "default": 0
+          },
+          "estimatedDeletions": {
+            "type": "integer",
+            "title": "Estimateddeletions",
+            "description": "Факт (оценка даты): удалённые услуги без истории, дата = expiresAt + льготный период",
+            "default": 0
+          },
+          "dueServices": {
+            "type": "integer",
+            "title": "Dueservices",
+            "description": "Прогноз: услуги с ближайшим продлением в этот день",
+            "default": 0
+          },
+          "dueAtRisk": {
+            "type": "integer",
+            "title": "Dueatrisk",
+            "description": "Прогноз: из них услуги под риском — score не ниже порога medium",
+            "default": 0
+          },
+          "expectedNonRenewals": {
+            "type": "number",
+            "title": "Expectednonrenewals",
+            "description": "Прогноз: Σ вероятностей непродления",
+            "default": 0
+          },
+          "churnedClients": {
+            "type": "integer",
+            "title": "Churnedclients",
+            "description": "Факт: клиенты, у которых в этот день удалили услугу (включая оценённые даты)",
+            "default": 0
+          },
+          "lostRevenue": {
+            "type": "number",
+            "title": "Lostrevenue",
+            "description": "Факт: стоимость продлений удалённых в этот день услуг, евроценты",
+            "default": 0
+          },
+          "clientsAtRisk": {
+            "type": "integer",
+            "title": "Clientsatrisk",
+            "description": "Прогноз: клиенты с уровнем medium/high, у которых в этот день первое продление, не покрытое деньгами на счёте",
+            "default": 0
+          },
+          "expectedChurnedClients": {
+            "type": "number",
+            "title": "Expectedchurnedclients",
+            "description": "Прогноз: Σ вероятностей ухода клиентов с первым непокрытым продлением в этот день",
+            "default": 0
+          },
+          "revenueAtRisk": {
+            "type": "number",
+            "title": "Revenueatrisk",
+            "description": "Прогноз: стоимость продлений этого дня, не покрытых деньгами, евроценты",
+            "default": 0
+          },
+          "expectedLoss": {
+            "type": "number",
+            "title": "Expectedloss",
+            "description": "Прогноз: ожидаемые потери этого дня = Σ по непокрытым продлениям вероятность непродления услуги × цена; сумма по горизонту = money.expectedLoss сводки",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "kind"
+        ],
+        "title": "TimelinePoint"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token"
+        ],
+        "title": "TokenResponse"
+      },
+      "TransactionIn": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id"
+          },
+          "amount": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Amount"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_performed",
+              "performed"
+            ],
+            "title": "Status",
+            "default": "not_performed"
+          },
+          "performedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performedat"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "prolong",
+              "order"
+            ],
+            "title": "Type"
+          },
+          "serviceId": {
+            "type": "integer",
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Serviceid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "amount",
+          "createdAt",
+          "type",
+          "serviceId"
+        ],
+        "title": "TransactionIn"
+      },
+      "TxStatsOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "performed": {
+            "type": "integer",
+            "title": "Performed"
+          },
+          "notPerformed": {
+            "type": "integer",
+            "title": "Notperformed"
+          },
+          "lastPerformedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastperformedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "performed",
+          "notPerformed",
+          "lastPerformedAt"
+        ],
+        "title": "TxStatsOut"
+      },
+      "UserOut": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "UserOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Versions": {
+        "properties": {
+          "runId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runid"
+          },
+          "settingsVersion": {
+            "type": "integer",
+            "title": "Settingsversion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "runId",
+          "settingsVersion"
+        ],
+        "title": "Versions"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

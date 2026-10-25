@@ -225,6 +225,8 @@ class ModelSettingsOut(CamelModel):
     version: int
     updated_at: datetime
     features: list[FeatureInfo]
+    defaults: ModelSettings = Field(default_factory=ModelSettings,
+                                    description="Значения по умолчанию: для кнопки «Вернуть значения по умолчанию»")
 
 
 # --- Выход: результаты оценки ------------------------------------------------
@@ -257,8 +259,8 @@ class Money(CamelModel):
     secured_by_balance: float = Field(description="Часть horizon_revenue, которую автопродление спишет с основного баланса")
     covered_by_bonus: float = Field(0, description="Часть horizon_revenue, которую автопродление оплатит доступными бонусами")
     at_risk: float = Field(description="horizon_revenue − secured_by_balance − covered_by_bonus")
-    expected_loss: float = Field(description="вероятность ухода клиента (score / 100) × at_risk")
-    expected_monthly_loss: float = Field(description="вероятность ухода клиента × месячная цена")
+    expected_loss: float = Field(description="Σ по услугам: вероятность непродления услуги (её score / 100) × её at_risk")
+    expected_monthly_loss: float = Field(description="Σ по услугам: вероятность непродления услуги × её месячная цена")
 
 
 class TxStatsOut(CamelModel):
@@ -373,7 +375,18 @@ class TimelinePoint(CamelModel):
     deletions: int = Field(0, description="Факт: услуги, перешедшие в deleted между снимками")
     estimated_deletions: int = Field(0, description="Факт (оценка даты): удалённые услуги без истории, дата = expiresAt + льготный период")
     due_services: int = Field(0, description="Прогноз: услуги с ближайшим продлением в этот день")
+    due_at_risk: int = Field(0, description="Прогноз: из них услуги под риском — score не ниже порога medium")
     expected_non_renewals: float = Field(0, description="Прогноз: Σ вероятностей непродления")
+    churned_clients: int = Field(0, description="Факт: клиенты, у которых в этот день удалили услугу (включая оценённые даты)")
+    lost_revenue: float = Field(0, description="Факт: стоимость продлений удалённых в этот день услуг, евроценты")
+    clients_at_risk: int = Field(0, description="Прогноз: клиенты с уровнем medium/high, у которых в этот день первое "
+                                                "продление, не покрытое деньгами на счёте")
+    expected_churned_clients: float = Field(0, description="Прогноз: Σ вероятностей ухода клиентов с первым непокрытым "
+                                                           "продлением в этот день")
+    revenue_at_risk: float = Field(0, description="Прогноз: стоимость продлений этого дня, не покрытых деньгами, евроценты")
+    expected_loss: float = Field(0, description="Прогноз: ожидаемые потери этого дня = Σ по непокрытым продлениям "
+                                                "вероятность непродления услуги × цена; сумма по горизонту = "
+                                                "money.expectedLoss сводки")
 
 
 class ChurnTimeline(CamelModel):

@@ -1,0 +1,2 @@
+# Shell-скрипты запускаются в Linux-контейнере: только LF, даже при core.autocrlf=true на Windows
+*.sh text eol=lf

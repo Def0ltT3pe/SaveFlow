@@ -1,0 +1,74 @@
+{
+  "realm": "saveflow",
+  "displayName": "SaveFlow",
+  "loginTheme": "saveflow",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ru", "en"],
+  "defaultLocale": "ru",
+  "roles": {
+    "realm": [
+      { "name": "analyst", "description": "Доступ к панели SaveFlow" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "saveflow-panel",
+      "name": "SaveFlow",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:*", "http://127.0.0.1:*", "http://${PUBLIC_HOST:localhost}:*", "https://${PUBLIC_HOST:localhost}/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "analyst",
+      "enabled": true,
+      "email": "analyst@saveflow.test",
+      "emailVerified": true,
+      "firstName": "Анна",
+      "lastName": "Аналитик",
+      "credentials": [{ "type": "password", "value": "analyst", "temporary": false }],
+      "realmRoles": ["analyst"]
+    },
+    {
+      "username": "guest",
+      "enabled": true,
+      "email": "guest@saveflow.test",
+      "emailVerified": true,
+      "firstName": "Гость",
+      "lastName": "Без доступа",
+      "credentials": [{ "type": "password", "value": "guest", "temporary": false }]
+    }
+  ]
+}

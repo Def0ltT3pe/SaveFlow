@@ -4,11 +4,12 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, insert, select, update
 
-from app.db.models import AuthSession
+from app.db.models import AuthSession, OidcLoginRequest
 from app.db.session import session_factory, setting
 
 TOKEN_BYTES = 32
 MAX_TOKEN_LENGTH = 128
+LOGIN_REQUEST_TTL = timedelta(minutes=10)
 
 
 def session_ttl() -> timedelta:
@@ -28,14 +29,17 @@ def _hash(token) -> bytes | None:
     return hashlib.sha256(token.encode("ascii")).digest()
 
 
-def issue(username: str, *, now: datetime | None = None) -> str:
-    """Новая сессия; возвращает токен для клиента. В БД сохраняется только его хеш."""
+def issue(username: str, *, id_token: str | None = None, now: datetime | None = None) -> str:
+    """Новая сессия; возвращает токен для клиента. В БД сохраняется только его хеш.
+
+    id_token — для входа через OIDC: по нему при выходе провайдер завершает свою сессию без лишнего вопроса.
+    """
     now = now or datetime.now(timezone.utc)
     token = secrets.token_urlsafe(TOKEN_BYTES)
     with session_factory()() as s:
         # Заодно убираем давно истёкшие сессии, чтобы таблица не росла.
         s.execute(delete(AuthSession).where(AuthSession.expires_at < now - timedelta(days=1)))
-        s.execute(insert(AuthSession).values(token_hash=_hash(token), username=username,
+        s.execute(insert(AuthSession).values(token_hash=_hash(token), username=username, id_token=id_token,
                                              created_at=now, expires_at=now + session_ttl()))
         s.commit()
     return token
@@ -55,13 +59,42 @@ def username_for(token, *, now: datetime | None = None) -> str | None:
         ))
 
 
-def revoke(token, *, now: datetime | None = None) -> None:
-    """Выход: сессия перестаёт действовать сразу на всех воркерах."""
+def revoke(token, *, now: datetime | None = None) -> str | None:
+    """Выход: сессия перестаёт действовать сразу на всех воркерах. Возвращает её id_token, если входили через OIDC."""
     token_hash = _hash(token)
     if token_hash is None:
-        return
+        return None
+    active = (AuthSession.token_hash == token_hash, AuthSession.revoked_at.is_(None))
     with session_factory()() as s:
-        s.execute(update(AuthSession)
-                  .where(AuthSession.token_hash == token_hash, AuthSession.revoked_at.is_(None))
-                  .values(revoked_at=now or datetime.now(timezone.utc)))
+        id_token = s.scalar(select(AuthSession.id_token).where(*active).with_for_update())
+        # После выхода id_token в базе не нужен
+        s.execute(update(AuthSession).where(*active)
+                  .values(revoked_at=now or datetime.now(timezone.utc), id_token=None))
         s.commit()
+    return id_token
+
+
+def save_login_request(state: str, nonce: str, code_verifier: str, *, now: datetime | None = None) -> None:
+    """Начатый вход через OIDC: по state при возврате от провайдера находятся nonce и code_verifier."""
+    now = now or datetime.now(timezone.utc)
+    with session_factory()() as s:
+        s.execute(delete(OidcLoginRequest).where(OidcLoginRequest.expires_at < now))
+        s.execute(insert(OidcLoginRequest).values(state_hash=_hash(state), nonce=nonce, code_verifier=code_verifier,
+                                                  created_at=now, expires_at=now + LOGIN_REQUEST_TTL))
+        s.commit()
+
+
+def take_login_request(state, *, now: datetime | None = None) -> tuple[str, str] | None:
+    """(nonce, code_verifier) начатого входа; запись удаляется сразу — повторный возврат с тем же state не пройдёт."""
+    state_hash = _hash(state)
+    if state_hash is None:
+        return None
+    now = now or datetime.now(timezone.utc)
+    with session_factory()() as s:
+        row = s.execute(delete(OidcLoginRequest).where(OidcLoginRequest.state_hash == state_hash)
+                        .returning(OidcLoginRequest.nonce, OidcLoginRequest.code_verifier,
+                                   OidcLoginRequest.expires_at)).first()
+        s.commit()
+    if row is None or row.expires_at <= now:
+        return None
+    return row.nonce, row.code_verifier

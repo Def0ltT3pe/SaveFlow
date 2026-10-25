@@ -57,9 +57,11 @@ export function errorMessage(e: unknown): string {
 }
 
 // ── Авторизация ─────────────────────────────────────────
+// 'auth_via' = 'sso' — вошли через OIDC: при выходе нужно выйти и у провайдера.
 export const login = async (body: LoginRequest) => {
   const { data } = await http.post<{ access_token: string; token_type: string }>('/auth/login', body);
   localStorage.setItem('token', data.access_token);
+  localStorage.removeItem('auth_via');
   return data;
 };
 export const getMe = async (): Promise<User> => {
@@ -67,12 +69,47 @@ export const getMe = async (): Promise<User> => {
   return { id: data.username, username: data.username };
 };
 export const logout = async () => {
+  const viaSso = localStorage.getItem('auth_via') === 'sso';
+  let next: string | null = null;
   try {
-    await http.post('/auth/logout');
+    // Через OIDC выходим и у провайдера, иначе следующий вход через него пройдёт без пароля.
+    // Бэкенд отдаёт адрес выхода с id_token: провайдер не переспрашивает и сразу показывает свою форму входа.
+    if (viaSso) next = (await http.post<{ redirect: string }>('/auth/oidc/logout')).data.redirect;
+    else await http.post('/auth/logout');
+  } catch (e) {
+    if (!viaSso) throw e;
+    next = '/api/v1/auth/oidc/logout'; // сессия панели уже истекла: выход у провайдера, но с его вопросом «Выйти?»
   } finally {
     localStorage.removeItem('token');
+    localStorage.removeItem('auth_via');
   }
+  if (next) window.location.assign(next);
 };
+
+/** Вход через OIDC: включён ли он на бэкенде и как подписать кнопку. */
+export const getOidcConfig = async () =>
+  (await http.get<{ enabled: boolean; name: string | null }>('/auth/oidc/config')).data;
+export const OIDC_LOGIN_URL = '/api/v1/auth/oidc/login';
+
+/**
+ * Бэкенд возвращает с провайдера на /login#sso_token=… или #sso_error=…, а после отказа в доступе — через выход
+ * у провайдера на /login?sso_error=…: забираем результат и чистим адрес.
+ */
+export function takeSsoResult(): { error: string | null } {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const query = new URLSearchParams(window.location.search);
+  const token = hash.get('sso_token');
+  const error = hash.get('sso_error') ?? query.get('sso_error');
+  if (!token && !error) return { error: null };
+  query.delete('sso_error');
+  const rest = query.toString();
+  window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+  if (token) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('auth_via', 'sso');
+  }
+  return { error };
+}
 
 // ── Клиенты ─────────────────────────────────────────────
 const PAGE_LIMIT = 500;
