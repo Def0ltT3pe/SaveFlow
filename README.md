@@ -8,6 +8,7 @@
 
 - [Возможности](#возможности)
 - [Запуск через Docker](#запуск-через-docker)
+- [Установка на сервер](#установка-на-сервер)
 - [Как пользоваться](#как-пользоваться)
 - [Архитектура](#архитектура)
 - [Модель риска оттока](#модель-риска-оттока)
@@ -81,7 +82,88 @@ docker compose down -v   # остановить и удалить данные: 
 
 Если порт 8080 занят: `APP_PORT=8090 docker compose up --build` (в PowerShell — строка `APP_PORT=8090` в `.env`).
 
-**На сервере.** Если панель открывают не на том компьютере, где запущен Docker, укажите в `.env` его адрес — например `PUBLIC_HOST=203.0.113.10` или `PUBLIC_HOST=saveflow.example.com` — и выполните `docker compose up -d --build`. Без этого кнопка «Войти через Keycloak» уводит браузер на `localhost`, то есть на компьютер самого пользователя. На сервере должны быть открыты оба порта: `APP_PORT` (панель) и `KEYCLOAK_PORT` (страница входа Keycloak). Keycloak при смене адреса пересоздаётся и заново импортирует realm, в котором этот адрес разрешён для возврата в панель.
+Если панель открывают не на том компьютере, где запущен Docker, — см. [Установка на сервер](#установка-на-сервер).
+
+## Установка на сервер
+
+Пример для Ubuntu 22.04/24.04 и Debian 12; подойдёт любой Linux с Docker. Рекомендуем от 2 ядер, 4 ГБ памяти и 10 ГБ диска: больше всего ресурсов уходит на Keycloak и сборку образов.
+
+**1. Docker и git**
+
+```bash
+sudo apt update && sudo apt install -y git curl
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER      # чтобы запускать docker без sudo; после этого перезайдите на сервер
+docker compose version             # нужен Compose v2
+```
+
+**2. Код**
+
+```bash
+git clone https://github.com/Def0ltT3pe/SaveFlow.git
+cd SaveFlow
+```
+
+Ветка по умолчанию — `main`, в ней готовый релиз.
+
+**3. Настройки**
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+В нижнем блоке файла раскомментируйте и заполните хотя бы эти строки:
+
+```ini
+PUBLIC_HOST=203.0.113.10                  # IP или домен сервера, иначе вход через Keycloak уводит на localhost
+DEMO_PASSWORD=your-panel-password         # пароль входа admin в панель
+DB_PASSWORD=YourDbPassword1               # только буквы и цифры
+KEYCLOAK_ADMIN_PASSWORD=your-kc-password  # пароль администратора Keycloak
+```
+
+Адрес сервера вписывается только в `PUBLIC_HOST`: из него Docker Compose сам собирает адреса панели и Keycloak для браузера. Строки с `localhost` в верхнем блоке файла (`DATABASE_URL`, `OIDC_…`) нужны для разработки без Docker. В Docker они не используются, менять их не надо: `.env` не попадает в образ, а бэкенд ходит к базе и Keycloak по именам контейнеров.
+
+`DB_PASSWORD` задаётся до первого запуска: PostgreSQL запоминает его, когда создаёт том `pgdata`. Если поменять пароль потом, бэкенд не подключится к базе, пока не пересоздать том (`docker compose down -v` удалит данные).
+
+**4. Порты**
+
+Снаружи нужны два порта: `APP_PORT` (панель, 8080) и `KEYCLOAK_PORT` (страница входа Keycloak, 8180). Если на сервере включён `ufw`:
+
+```bash
+sudo ufw allow 8080/tcp
+sudo ufw allow 8180/tcp
+```
+
+У облачного провайдера те же порты открываются в группе безопасности или файрволе в его панели.
+
+**5. Запуск**
+
+```bash
+docker compose up -d --build
+docker compose ps                     # db и backend — healthy, frontend и keycloak — running
+curl http://localhost:8080/healthz    # {"status":"ok"}
+```
+
+Первая сборка занимает несколько минут, Keycloak стартует ещё около минуты. Панель откроется на `http://<PUBLIC_HOST>:8080`: вход `admin` с паролем из `DEMO_PASSWORD` или «Войти через Keycloak» — `analyst` / `analyst`. Логи — `docker compose logs -f backend` (или `keycloak`, `frontend`).
+
+У контейнеров `restart: unless-stopped`, поэтому после перезагрузки сервера они поднимаются сами.
+
+**Обновление**
+
+```bash
+cd SaveFlow
+git pull
+docker compose up -d --build
+```
+
+Данные, настройки модели и сессии входа лежат в томе `pgdata` и сохраняются; миграции базы накатываются при старте бэкенда.
+
+**Остановка:** `docker compose down` — данные останутся; `docker compose down -v` — вместе с данными.
+
+**Учтите:**
+- панель и Keycloak работают по HTTP;
+- Keycloak запущен в демо-режиме (`start-dev`) и хранит данные внутри контейнера. Изменения в его админке (новые пользователи, пароли) пропадут, когда контейнер пересоздастся — например, после смены `PUBLIC_HOST` или `docker compose down`. При этом realm `saveflow` с пользователями `analyst` и `guest` импортируется заново.
 
 ## Как пользоваться
 
