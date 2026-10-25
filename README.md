@@ -208,7 +208,7 @@ flowchart LR
 | Бэкенд | Python 3.12, FastAPI, Uvicorn, SQLAlchemy 2, Alembic, Pydantic 2, PyJWT |
 | Фронтенд | React 18, TypeScript, Vite 5, Recharts, React Router, Axios |
 | Инфраструктура | Docker Compose, PostgreSQL 16, nginx, Keycloak 26, метрики Prometheus |
-| Качество | pytest (≈ 470 тестов), тесты фронтенда на `node:test`, OpenAPI + Swagger |
+
 
 ## Модель риска оттока
 
